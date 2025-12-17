@@ -38,8 +38,8 @@ An open benchmark for evaluating people search. Test how well your search API fi
 ## Installation
 
 ```bash
-git clone https://github.com/exa-labs/people-benchmark.git
-cd people-benchmark
+git clone https://github.com/exa-labs/benchmarks.git
+cd benchmarks/simple-people-benchmark
 
 # Install with uv (recommended)
 uv sync
