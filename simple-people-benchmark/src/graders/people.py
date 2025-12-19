@@ -1,7 +1,14 @@
+import asyncio
 import logging
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, RateLimitError
 from pydantic import BaseModel, Field
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from ..searchers import SearchResult
 from .base import GradeResult
@@ -58,28 +65,39 @@ class PeopleGrader:
         self.temperature = temperature
         self.client = AsyncOpenAI(api_key=api_key)
 
+    @retry(
+        retry=retry_if_exception_type(RateLimitError),
+        stop=stop_after_attempt(10),
+        wait=wait_exponential(multiplier=1, min=1, max=60),
+    )
+    async def _grade_with_retry(self, query: str, result: SearchResult) -> GradeResult:
+        response = await self.client.beta.chat.completions.parse(
+            model=self.model,
+            temperature=self.temperature,
+            messages=[
+                {"role": "system", "content": PEOPLE_ROLE_GRADING_SYSTEM},
+                {
+                    "role": "user",
+                    "content": PEOPLE_ROLE_GRADING_USER.format(
+                        query=query,
+                        url=result.url,
+                        title=result.title,
+                        text=result.text or "(no content)",
+                    ),
+                },
+            ],
+            response_format=PeopleGradeResult,
+        )
+        parsed = response.choices[0].message.parsed
+        assert parsed is not None
+        return GradeResult(scores={"is_match": 1.0 if parsed.score >= 0.5 else 0.0})
+
     async def grade(self, query: str, result: SearchResult) -> GradeResult:
         try:
-            response = await self.client.beta.chat.completions.parse(
-                model=self.model,
-                temperature=self.temperature,
-                messages=[
-                    {"role": "system", "content": PEOPLE_ROLE_GRADING_SYSTEM},
-                    {
-                        "role": "user",
-                        "content": PEOPLE_ROLE_GRADING_USER.format(
-                            query=query,
-                            url=result.url,
-                            title=result.title,
-                            text=result.text or "(no content)",
-                        ),
-                    },
-                ],
-                response_format=PeopleGradeResult,
-            )
-            parsed = response.choices[0].message.parsed
-            assert parsed is not None
-            return GradeResult(scores={"is_match": 1.0 if parsed.score >= 0.5 else 0.0})
+            return await self._grade_with_retry(query, result)
         except Exception as e:
-            logger.warning(f"People grading failed: {e}")
+            # Only log non-rate-limit errors, rate limits are handled by retry
+            if not isinstance(e, RateLimitError):
+                logger.warning(f"People grading failed: {e}")
+            # Return 0 for any persistent failures after retries
             return GradeResult(scores={"is_match": 0.0})

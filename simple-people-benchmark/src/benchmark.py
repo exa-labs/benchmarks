@@ -91,15 +91,18 @@ async def enrich_results(results: list[SearchResult]) -> list[SearchResult]:
 
 
 class Benchmark:
-    def __init__(self, searchers: list[Searcher], grading_concurrency: int = 50):
+    def __init__(self, searchers: list[Searcher], grading_concurrency: int = 10):
         self.searchers = searchers
         self.grader = PeopleGrader()
+        # Reduced concurrency to respect OpenAI rate limits (30k TPM)
         self._grade_semaphore = asyncio.Semaphore(grading_concurrency)
 
     async def _grade(self, query: Query, results: list[SearchResult]) -> list[dict]:
         async def grade_one(rank: int, r: SearchResult) -> dict:
             async with self._grade_semaphore:
                 g = await self.grader.grade(query.text, r)
+                # Small delay to help respect OpenAI rate limits (30k TPM)
+                await asyncio.sleep(0.1)
             return {"query_id": query.query_id, "rank": rank, "is_match": g.scores.get("is_match", 0)}
 
         return await asyncio.gather(*[grade_one(i, r) for i, r in enumerate(results, 1)])
@@ -113,15 +116,26 @@ class Benchmark:
         task_id: TaskID,
     ) -> list[dict]:
         grades = []
-        semaphore = asyncio.Semaphore(20)
+        # Lower concurrency for Brave to avoid rate limits
+        concurrency = 3 if searcher.name == "brave" else 20
+        semaphore = asyncio.Semaphore(concurrency)
 
         async def process(q: Query):
             async with semaphore:
-                results = await searcher.search(q.text, config.num_results)
-                if config.enrich_exa_contents:
-                    results = await enrich_results(results)
-                grades.extend(await self._grade(q, results))
-                progress.advance(task_id)
+                try:
+                    results = await searcher.search(q.text, config.num_results)
+                    if config.enrich_exa_contents:
+                        results = await enrich_results(results)
+                    grades.extend(await self._grade(q, results))
+                except Exception as e:
+                    logger.warning(f"Failed to process query {q.query_id}: {e}")
+                    # Return empty results on failure
+                    grades.extend(await self._grade(q, []))
+                finally:
+                    progress.advance(task_id)
+                    # Add delay for Brave to respect rate limits
+                    if searcher.name == "brave":
+                        await asyncio.sleep(2.0)  # Increased delay
 
         await asyncio.gather(*[process(q) for q in queries])
         return grades
