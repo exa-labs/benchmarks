@@ -1,3 +1,16 @@
+# Exa Search Benchmarks
+
+Open benchmarks for evaluating search APIs. Test how well your search finds people, companies, and more.
+
+## Benchmarks
+
+| Benchmark | Queries | Description |
+|-----------|---------|-------------|
+| [People Search](simple-people-benchmark/) | 1,400 | Find LinkedIn profiles by role, location, seniority |
+| [Company Search](simple-company-benchmark/) | ~800 | Find companies by name, industry, geography, funding |
+
+---
+
 # People Search Benchmark
 
 An open benchmark for evaluating people search. Test how well your search API finds LinkedIn profiles by role, location, and seniority.
