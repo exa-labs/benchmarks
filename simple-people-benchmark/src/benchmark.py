@@ -3,7 +3,9 @@ import asyncio
 import json
 import logging
 import os
-from dataclasses import dataclass, field
+import uuid
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -12,13 +14,15 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, TaskID, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from .graders import PeopleGrader
+from benchmarks.shared.graders import PeopleGrader
+from benchmarks.shared.searchers import SearchResult, Searcher
+
 from .metrics import compute_retrieval_metrics
-from .searchers import SearchResult, Searcher
 
 console = Console()
 logger = logging.getLogger(__name__)
 DATA_DIR = Path(__file__).parent.parent / "data"
+RUNS_DIR = Path(__file__).parent.parent / "runs"
 
 
 @dataclass
@@ -85,9 +89,24 @@ async def enrich_results(results: list[SearchResult]) -> list[SearchResult]:
     except Exception as e:
         logger.warning(f"Content fetch failed: {e}")
         return results
-    return [
-        SearchResult(r.url, r.title, contents.get(r.url, r.text), r.metadata) for r in results
-    ]
+    return [SearchResult(r.url, r.title, contents.get(r.url, r.text), r.metadata) for r in results]
+
+
+@dataclass
+class RunLog:
+    run_id: str
+    timestamp: str
+    config: dict
+    searchers: list[str]
+    grades: list[dict] = field(default_factory=list)
+    metrics: dict = field(default_factory=dict)
+
+    def save(self):
+        RUNS_DIR.mkdir(parents=True, exist_ok=True)
+        filepath = RUNS_DIR / f"{self.run_id}.json"
+        with open(filepath, "w") as f:
+            json.dump(asdict(self), f, indent=2)
+        return filepath
 
 
 class Benchmark:
@@ -95,12 +114,17 @@ class Benchmark:
         self.searchers = searchers
         self.grader = PeopleGrader()
         self._grade_semaphore = asyncio.Semaphore(grading_concurrency)
+        self._run_log: RunLog | None = None
 
     async def _grade(self, query: Query, results: list[SearchResult]) -> list[dict]:
         async def grade_one(rank: int, r: SearchResult) -> dict:
             async with self._grade_semaphore:
                 g = await self.grader.grade(query.text, r)
-            return {"query_id": query.query_id, "rank": rank, "is_match": g.scores.get("is_match", 0)}
+            return {
+                "query_id": query.query_id,
+                "rank": rank,
+                "is_match": g.scores.get("is_match", 0),
+            }
 
         return await asyncio.gather(*[grade_one(i, r) for i, r in enumerate(results, 1)])
 
@@ -113,7 +137,7 @@ class Benchmark:
         task_id: TaskID,
     ) -> list[dict]:
         grades = []
-        semaphore = asyncio.Semaphore(20)
+        semaphore = asyncio.Semaphore(5)
 
         async def process(q: Query):
             async with semaphore:
@@ -135,7 +159,20 @@ class Benchmark:
             console.print("Make sure data/people/simple_people_search.jsonl exists.")
             return {}
 
-        console.print(f"\n[bold]People Search Benchmark[/bold]")
+        run_id = str(uuid.uuid4())
+        self._run_log = RunLog(
+            run_id=run_id,
+            timestamp=datetime.now().isoformat(),
+            config={
+                "limit": config.limit,
+                "num_results": config.num_results,
+                "enrich_exa_contents": config.enrich_exa_contents,
+            },
+            searchers=[s.name for s in self.searchers],
+        )
+
+        console.print("\n[bold]People Search Benchmark[/bold]")
+        console.print(f"  Run ID: {run_id}")
         console.print(f"  Searchers: {[s.name for s in self.searchers]}")
         console.print(f"  Queries: {len(queries)}")
         console.print(f"  Exa enrichment: {'on' if config.enrich_exa_contents else 'off'}")
@@ -166,9 +203,17 @@ class Benchmark:
 
         for name, grades in all_grades:
             if grades:
+                self._run_log.grades.extend(grades)
                 results["searchers"][name] = {
-                    "metrics": compute_retrieval_metrics(grades).__dict__
+                    "metrics": compute_retrieval_metrics(grades).__dict__,
+                    "grades": grades,
                 }
+
+        self._run_log.metrics = {
+            name: data.get("metrics", {}) for name, data in results.get("searchers", {}).items()
+        }
+        run_file = self._run_log.save()
+        console.print(f"\n[green]Run log saved to {run_file}[/green]")
 
         _print_summary(results)
 

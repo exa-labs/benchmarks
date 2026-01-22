@@ -17,4 +17,3 @@ class Searcher(ABC):
     @abstractmethod
     async def search(self, query: str, num_results: int = 10) -> list[SearchResult]:
         pass
-

@@ -1,4 +1,5 @@
-from .base import SearchResult, Searcher
+from benchmarks.shared.searchers import SearchResult, Searcher
+
 from .brave import BraveSearcher
 from .exa import ExaSearcher
 from .parallel import ParallelSearcher
@@ -10,4 +11,3 @@ __all__ = [
     "ExaSearcher",
     "ParallelSearcher",
 ]
-

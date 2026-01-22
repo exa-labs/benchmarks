@@ -1,3 +1,5 @@
+"""Exa search implementation for company search benchmark."""
+
 import asyncio
 import os
 from typing import Any
