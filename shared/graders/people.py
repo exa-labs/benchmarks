@@ -1,10 +1,9 @@
 import logging
 
-from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
+from .base import BaseLLMGrader, GradeResult
 from ..searchers import SearchResult
-from .base import GradeResult
 
 logger = logging.getLogger(__name__)
 
@@ -50,14 +49,7 @@ class PeopleGradeResult(BaseModel):
     score: float = Field(..., ge=0.0, le=1.0)
 
 
-class PeopleGrader:
-    def __init__(
-        self, model: str = "gpt-4.1", temperature: float = 0.0, api_key: str | None = None
-    ):
-        self.model = model
-        self.temperature = temperature
-        self.client = AsyncOpenAI(api_key=api_key)
-
+class PeopleGrader(BaseLLMGrader):
     async def grade(self, query: str, result: SearchResult) -> GradeResult:
         try:
             response = await self.client.beta.chat.completions.parse(

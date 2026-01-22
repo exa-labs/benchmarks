@@ -3,7 +3,7 @@ from typing import Any
 
 import httpx
 
-from .base import SearchResult, Searcher
+from benchmarks.shared.searchers import SearchResult, Searcher
 
 
 class ParallelSearcher(Searcher):
@@ -16,15 +16,9 @@ class ParallelSearcher(Searcher):
         processor: str = "base",
         source_policy: dict | None = None,
     ):
-        self.api_key = (
-            api_key
-            or os.getenv("PARALLEL_API_KEY")
-            or os.getenv("PARALLELS_API_KEY")
-        )
+        self.api_key = api_key or os.getenv("PARALLEL_API_KEY") or os.getenv("PARALLELS_API_KEY")
         if not self.api_key:
-            raise ValueError(
-                "Parallel API key required - set PARALLEL_API_KEY or pass api_key"
-            )
+            raise ValueError("Parallel API key required - set PARALLEL_API_KEY or pass api_key")
 
         self.base_url = base_url
         self.processor = processor
@@ -74,7 +68,8 @@ class ParallelSearcher(Searcher):
                     metadata={
                         "rank": i,
                         "author": result.get("author"),
-                        "published_date": result.get("published_date") or result.get("publishedDate"),
+                        "published_date": result.get("published_date")
+                        or result.get("publishedDate"),
                     },
                 )
             )
@@ -83,4 +78,3 @@ class ParallelSearcher(Searcher):
 
     async def close(self):
         await self._client.aclose()
-

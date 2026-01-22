@@ -3,7 +3,7 @@ from typing import Any
 
 import httpx
 
-from .base import SearchResult, Searcher
+from benchmarks.shared.searchers import SearchResult, Searcher
 
 
 class BraveSearcher(Searcher):
@@ -18,9 +18,7 @@ class BraveSearcher(Searcher):
     ):
         self.api_key = api_key or os.getenv("BRAVE_SEARCH_API_KEY") or os.getenv("BRAVE_API_KEY")
         if not self.api_key:
-            raise ValueError(
-                "Brave API key required - set BRAVE_SEARCH_API_KEY or pass api_key"
-            )
+            raise ValueError("Brave API key required - set BRAVE_SEARCH_API_KEY or pass api_key")
 
         self.base_url = base_url
         self.site_filter = site_filter
@@ -84,4 +82,3 @@ class BraveSearcher(Searcher):
 
     async def close(self):
         await self._client.aclose()
-
