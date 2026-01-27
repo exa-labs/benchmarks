@@ -1,6 +1,6 @@
 # Simple People Search Benchmark
 
-Open benchmark for evaluating people search (LinkedIn profiles).
+Open benchmark for evaluating people search.
 
 ## Usage
 

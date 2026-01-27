@@ -1,12 +1,12 @@
 [project]
 name = "people-benchmark"
 version = "0.1.0"
-description = "Open benchmark for evaluating people search (LinkedIn profiles)"
+description = "Open benchmark for evaluating people search"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Exa", email = "hello@exa.ai" }]
-keywords = ["benchmark", "search", "people", "linkedin", "evaluation", "llm"]
+keywords = ["benchmark", "search", "people", "evaluation", "llm"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",

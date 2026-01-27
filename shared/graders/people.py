@@ -7,7 +7,7 @@ from ..searchers import SearchResult
 
 logger = logging.getLogger(__name__)
 
-PEOPLE_ROLE_GRADING_SYSTEM = """You are evaluating if a LinkedIn profile satisfies a job role search query.
+PEOPLE_ROLE_GRADING_SYSTEM = """You are evaluating if a person profile page satisfies a job role search query.
 This is BINARY - score 1 if the profile matches, score 0 if it doesn't.
 AUTOMATIC SCORE 0 (no exceptions):
 1. Job listing pages (URLs with /jobs/, titles like "500 Jobs in NYC") → Score 0
@@ -29,7 +29,7 @@ Score 1 if:
 - Job function matches (with equivalences above)
 - Location matches if specified (same metro area is fine)
 - The person currently holds this role in this location, or if they hold this role and their primary profile is in this location
-- It's a real personal LinkedIn profile
+- It's a real personal profile page (e.g. LinkedIn)
 Score 0 if:
 - Wrong job function
 - Wrong location

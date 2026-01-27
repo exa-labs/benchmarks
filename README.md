@@ -6,7 +6,7 @@ Open benchmarks for evaluating search APIs. Test how well your search finds peop
 
 | Benchmark | Queries | Tracks | Description |
 |-----------|---------|--------|-------------|
-| [People Search](simple-people-benchmark/) | 1,400 | Retrieval | Find LinkedIn profiles by role, location, seniority |
+| [People Search](simple-people-benchmark/) | 1,400 | Retrieval | Find people profiles by role, location, seniority |
 | [Company Search](simple-company-benchmark/) | ~800 | Retrieval + RAG | Find companies by name, industry, geography, funding |
 
 ## People Search Results
