@@ -52,7 +52,7 @@ All datasets are JSONL files in `data/`:
 
 ### Golden markdown (contents eval)
 
-The contents dataset ships with URLs only — the golden markdown is not included for licensing reasons. To run the contents eval, you need to generate `data/contents/golden_markdown.jsonl` yourself. Each row should have the shape `{id, expected_markdown}`.
+The contents dataset contains URLs only; the golden markdown is not included for licensing reasons. To run the contents eval, you need to generate `data/contents/golden_markdown.jsonl` yourself. Each row should have the shape `{id, expected_markdown}`.
 
 We built the golden references using the following pipeline:
 
