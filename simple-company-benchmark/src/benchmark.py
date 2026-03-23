@@ -13,11 +13,10 @@ import httpx
 from rich.console import Console
 from rich.progress import BarColumn, Progress, TaskID, TextColumn, TimeElapsedColumn
 from rich.table import Table
+from shared.graders import RAGGrader, RetrievalGrader
+from shared.searchers import Searcher, SearchResult
 
-from benchmarks.shared.graders import RAGGrader, RetrievalGrader
-from benchmarks.shared.searchers import SearchResult, Searcher
-
-from .metrics import RAGMetrics, RetrievalMetrics, compute_rag_metrics, compute_retrieval_metrics
+from .metrics import compute_rag_metrics, compute_retrieval_metrics
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -420,7 +419,7 @@ def _build_searcher(name: str) -> Searcher | None:
     """Build a searcher by name."""
     try:
         if name == "exa":
-            from .searchers.exa import ExaSearcher
+            from shared.searchers import ExaSearcher
 
             return ExaSearcher(category="company")
     except (ValueError, ImportError) as e:

@@ -1,0 +1,21 @@
+[project]
+name = "benchmarks"
+version = "0.1.0"
+description = "Exa search benchmarks"
+requires-python = ">=3.11"
+
+[tool.uv.workspace]
+members = ["shared", "simple-people-benchmark", "simple-company-benchmark", "webcode-benchmark"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.7",
+]

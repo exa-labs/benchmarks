@@ -13,9 +13,8 @@ import httpx
 from rich.console import Console
 from rich.progress import BarColumn, Progress, TaskID, TextColumn, TimeElapsedColumn
 from rich.table import Table
-
-from benchmarks.shared.graders import PeopleGrader
-from benchmarks.shared.searchers import SearchResult, Searcher
+from shared.graders import PeopleGrader
+from shared.searchers import Searcher, SearchResult
 
 from .metrics import compute_retrieval_metrics
 
@@ -253,15 +252,15 @@ def _print_summary(results: dict[str, Any]):
 def _build_searcher(name: str) -> Searcher | None:
     try:
         if name == "exa":
-            from .searchers.exa import ExaSearcher
+            from shared.searchers import ExaSearcher
 
             return ExaSearcher(category="people")
         if name == "brave":
-            from .searchers.brave import BraveSearcher
+            from shared.searchers import BraveSearcher
 
             return BraveSearcher(site_filter="linkedin.com/in")
         if name == "parallel":
-            from .searchers.parallel import ParallelSearcher
+            from shared.searchers import ParallelSearcher
 
             return ParallelSearcher(source_policy={"include_domains": ["linkedin.com"]})
     except (ValueError, ImportError) as e:

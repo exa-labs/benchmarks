@@ -19,7 +19,7 @@ class BaseGradeOutput(BaseModel):
 class BaseLLMGrader:
     def __init__(
         self,
-        model: str = "gpt-4.1",
+        model: str = "gpt-5.4",
         temperature: float = 0.0,
         api_key: str | None = None,
     ):

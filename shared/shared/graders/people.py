@@ -2,8 +2,8 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from .base import BaseLLMGrader, GradeResult
 from ..searchers import SearchResult
+from .base import BaseLLMGrader, GradeResult
 
 logger = logging.getLogger(__name__)
 

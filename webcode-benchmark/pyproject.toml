@@ -1,12 +1,12 @@
 [project]
-name = "company-benchmark"
+name = "webcode-benchmark"
 version = "0.1.0"
-description = "Open benchmark for evaluating company search"
+description = "Code search and extraction benchmarks for evaluating search providers"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Exa", email = "hello@exa.ai" }]
-keywords = ["benchmark", "search", "company", "evaluation", "llm"]
+keywords = ["benchmark", "search", "code", "evaluation", "llm", "rag", "extraction"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -21,24 +21,23 @@ dependencies = [
     "httpx>=0.25.0",
     "pydantic>=2.0.0",
     "tenacity>=8.0.0",
+    "tiktoken>=0.7.0",
     "rich>=13.0.0",
+    "anthropic>=0.49.0",
 ]
-
-[tool.uv.sources]
-shared = { workspace = true }
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0.0", "pytest-asyncio>=0.21.0", "ruff>=0.1.0"]
 
-[project.scripts]
-cbench = "src.benchmark:main"
+[tool.uv.sources]
+shared = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["evals", "src"]
 
 [tool.ruff]
 line-length = 100

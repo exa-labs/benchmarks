@@ -1,13 +1,3 @@
-from benchmarks.shared.searchers import SearchResult, Searcher
+from shared.searchers import BraveSearcher, ExaSearcher, ParallelSearcher, Searcher, SearchResult
 
-from .brave import BraveSearcher
-from .exa import ExaSearcher
-from .parallel import ParallelSearcher
-
-__all__ = [
-    "Searcher",
-    "SearchResult",
-    "BraveSearcher",
-    "ExaSearcher",
-    "ParallelSearcher",
-]
+__all__ = ["Searcher", "SearchResult", "BraveSearcher", "ExaSearcher", "ParallelSearcher"]

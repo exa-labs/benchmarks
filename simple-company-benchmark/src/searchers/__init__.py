@@ -1,5 +1,3 @@
-from benchmarks.shared.searchers import SearchResult, Searcher
-
-from .exa import ExaSearcher
+from shared.searchers import ExaSearcher, Searcher, SearchResult
 
 __all__ = ["SearchResult", "Searcher", "ExaSearcher"]

@@ -2,9 +2,9 @@ import logging
 
 from pydantic import BaseModel, Field
 
+from ..searchers import SearchResult
 from .base import BaseLLMGrader, GradeResult
 from .utils import url_matches
-from ..searchers import SearchResult
 
 logger = logging.getLogger(__name__)
 
