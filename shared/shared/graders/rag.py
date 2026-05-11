@@ -238,8 +238,9 @@ class GroundedRAGGrader(BaseLLMGrader):
         model: str = "gpt-5.4",
         temperature: float = 0.0,
         api_key: str | None = None,
+        client=None,
     ):
-        super().__init__(model=model, temperature=temperature, api_key=api_key)
+        super().__init__(model=model, temperature=temperature, api_key=api_key, client=client)
 
     async def grade(
         self,
@@ -310,7 +311,12 @@ class GroundedRAGGrader(BaseLLMGrader):
             response_format=CorrectnessResult,
         )
         parsed = response.choices[0].message.parsed
-        assert parsed is not None
+        if parsed is None:
+            logger.warning("Correctness parse failed; defaulting to NOT_ATTEMPTED")
+            return CorrectnessResult(
+                reasoning="Parse error — response could not be decoded.",
+                correctness="NOT_ATTEMPTED",
+            )
         return parsed
 
     async def _call_groundedness(
@@ -335,7 +341,14 @@ class GroundedRAGGrader(BaseLLMGrader):
             response_format=GroundednessResult,
         )
         parsed = response.choices[0].message.parsed
-        assert parsed is not None
+        if parsed is None:
+            logger.warning("Groundedness parse failed; defaulting to UNGROUNDED")
+            return GroundednessResult(
+                evidence="NO EVIDENCE FOUND",
+                reasoning="Parse error — response could not be decoded.",
+                groundedness="UNGROUNDED",
+                source_indices=[],
+            )
         return parsed
 
     @staticmethod

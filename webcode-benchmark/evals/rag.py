@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -12,12 +13,18 @@ from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 from rich.table import Table
 from shared.agents import SimpleRAGAgent
 from shared.graders import Citation, GroundedRAGGrader
+from shared.graders.pplx_llm import PerplexityAgentLLMClient
 from shared.searchers import Searcher
 from shared.searchers.brave import BraveSearcher
 from shared.searchers.exa import ExaSearcher
 from shared.searchers.parallel import ParallelSearcher
 from shared.searchers.perplexity import PerplexitySearcher
+from shared.searchers.perplexity_agent import PerplexityAgentSearcher
 from shared.searchers.tavily import TavilySearcher
+
+# API keys for Perplexity variant arms — set via environment variables.
+_PPLX_NOCF_KEY = os.environ["PPLX_NOCF_KEY"]
+_PPLX_BETA_KEY = os.environ["PPLX_BETA_KEY"]
 
 from src.metrics import compute_grounded_rag_metrics
 
@@ -53,6 +60,36 @@ SEARCHER_BUILDERS: dict[str, callable] = {
     "perplexity": PerplexitySearcher,
     "parallel": ParallelSearcher,
     "tavily": TavilySearcher,
+    # Perplexity Agent API variants (web_search tool, 4 arms).
+    "pplx-nocf-noyt": lambda: PerplexityAgentSearcher(
+        api_key=_PPLX_NOCF_KEY, name="pplx-nocf-noyt", excluded_domains=["-youtube.com"],
+    ),
+    "pplx-nocf": lambda: PerplexityAgentSearcher(
+        api_key=_PPLX_NOCF_KEY, name="pplx-nocf", excluded_domains=[],
+    ),
+    "pplx-beta-noyt": lambda: PerplexityAgentSearcher(
+        api_key=_PPLX_BETA_KEY, name="pplx-beta-noyt", excluded_domains=["-youtube.com"],
+    ),
+    "pplx-beta": lambda: PerplexityAgentSearcher(
+        api_key=_PPLX_BETA_KEY, name="pplx-beta", excluded_domains=[],
+    ),
+    # High-step variant: max_steps=10, max_tokens=10000, max_tokens_per_page=4000.
+    "pplx-ms10": lambda: PerplexityAgentSearcher(
+        api_key=_PPLX_NOCF_KEY,
+        name="pplx-ms10",
+        excluded_domains=[],
+        max_steps=10,
+        max_tokens=10000,
+        max_tokens_per_page=4000,
+    ),
+    "pplx-ms10-noyt": lambda: PerplexityAgentSearcher(
+        api_key=_PPLX_NOCF_KEY,
+        name="pplx-ms10-noyt",
+        excluded_domains=["-youtube.com"],
+        max_steps=10,
+        max_tokens=10000,
+        max_tokens_per_page=4000,
+    ),
 }
 
 
@@ -87,14 +124,69 @@ async def run(
         console.print("[red]No searchers available.[/red]")
         return
 
-    grader = GroundedRAGGrader(model=grader_model)
-    rag_agent = SimpleRAGAgent(model=rag_model)
-    semaphore = asyncio.Semaphore(concurrency)
+    _pplx_llm = PerplexityAgentLLMClient(api_key=_PPLX_NOCF_KEY)
+    grader = GroundedRAGGrader(model=grader_model, client=_pplx_llm)
+    rag_agent = SimpleRAGAgent(model=rag_model, client=_pplx_llm)
     all_results: dict[str, list[dict]] = {}
 
     console.print("\n[bold]RAG Eval (Long-Context Code QA)[/bold]")
     console.print(f"  Queries: {len(queries)}")
     console.print(f"  Searchers: {[s.name for s in searchers]}\n")
+
+    async def run_searcher(
+        searcher: Searcher,
+        task_id: int,
+        sem: asyncio.Semaphore,
+    ) -> tuple[str, list[dict]]:
+        async def process(q: dict) -> dict:
+            async with sem:
+                query_text = q["query"]
+                expected = q["expected_answer"]
+                start = time.time()
+
+                try:
+                    results = await searcher.search(query_text, num_results=num_results)
+                except Exception as e:
+                    logger.warning(f"[{searcher.name}] search failed: {e}")
+                    results = []
+
+                latency = time.time() - start
+
+                try:
+                    rag_result = await rag_agent.synthesize(query_text, results)
+                except Exception as e:
+                    logger.warning(f"[{searcher.name}] rag synthesis failed: {e}")
+                    progress.advance(task_id)
+                    return {"id": q.get("id", ""), "query": query_text, "latency": round(latency, 2)}
+
+                citations = [
+                    Citation(url=c.url, title=c.title, text=c.text)
+                    for c in rag_result.citations
+                ]
+
+                try:
+                    grade = await grader.grade(
+                        question=query_text,
+                        expected_answer=expected,
+                        predicted_answer=rag_result.answer,
+                        citations=citations,
+                    )
+                except Exception as e:
+                    logger.warning(f"[{searcher.name}] grading failed: {e}")
+                    progress.advance(task_id)
+                    return {"id": q.get("id", ""), "query": query_text, "latency": round(latency, 2)}
+
+                progress.advance(task_id)
+
+                return {
+                    "id": q.get("id", ""),
+                    "query": query_text,
+                    "latency": round(latency, 2),
+                    **grade.scores,
+                }
+
+        grades = await asyncio.gather(*[process(q) for q in queries])
+        return searcher.name, list(grades)
 
     with Progress(
         TextColumn("[cyan]{task.fields[name]:>12}[/cyan]"),
@@ -104,47 +196,17 @@ async def run(
         TimeElapsedColumn(),
         console=console,
     ) as progress:
-        for searcher in searchers:
-            task_id = progress.add_task("", name=searcher.name, total=len(queries))
-            grades = []
-
-            async def process(q: dict) -> dict:
-                async with semaphore:
-                    query_text = q["query"]
-                    expected = q["expected_answer"]
-                    start = time.time()
-
-                    try:
-                        results = await searcher.search(query_text, num_results=num_results)
-                    except Exception as e:
-                        logger.warning(f"Search failed for query: {e}")
-                        results = []
-
-                    latency = time.time() - start
-                    rag_result = await rag_agent.synthesize(query_text, results)
-
-                    citations = [
-                        Citation(url=c.url, title=c.title, text=c.text)
-                        for c in rag_result.citations
-                    ]
-
-                    grade = await grader.grade(
-                        question=query_text,
-                        expected_answer=expected,
-                        predicted_answer=rag_result.answer,
-                        citations=citations,
-                    )
-                    progress.advance(task_id)
-
-                    return {
-                        "id": q.get("id", ""),
-                        "query": query_text,
-                        "latency": round(latency, 2),
-                        **grade.scores,
-                    }
-
-            grades = await asyncio.gather(*[process(q) for q in queries])
-            all_results[searcher.name] = list(grades)
+        # One progress bar + semaphore per searcher; all run in parallel.
+        searcher_tasks = [
+            run_searcher(
+                s,
+                progress.add_task("", name=s.name, total=len(queries)),
+                asyncio.Semaphore(concurrency),
+            )
+            for s in searchers
+        ]
+        pairs = await asyncio.gather(*searcher_tasks)
+        all_results = dict(pairs)
 
     _print_summary(all_results)
 

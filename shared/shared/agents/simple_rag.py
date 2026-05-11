@@ -52,10 +52,11 @@ class SimpleRAGAgent:
         model: str = "gpt-5-mini",
         api_key: str | None = None,
         system_prompt: str | None = None,
+        client=None,
     ):
         self.model = model
         self.system_prompt = system_prompt or SIMPLE_RAG_SYSTEM_PROMPT
-        self._client = AsyncOpenAI(api_key=api_key)
+        self._client = client if client is not None else AsyncOpenAI(api_key=api_key)
 
     async def synthesize(self, question: str, search_results: list[SearchResult]) -> RAGResult:
         citations = [

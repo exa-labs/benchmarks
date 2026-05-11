@@ -22,7 +22,8 @@ class BaseLLMGrader:
         model: str = "gpt-5.4",
         temperature: float = 0.0,
         api_key: str | None = None,
+        client=None,
     ):
         self.model = model
         self.temperature = temperature
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = client if client is not None else AsyncOpenAI(api_key=api_key)
