@@ -11,6 +11,11 @@ class SearchResult:
     highlights: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def content(self) -> str:
+        """Result body, falling back to highlights when full text isn't present."""
+        return self.text or "\n".join(self.highlights)
+
 
 class Searcher(ABC):
     name: str = "base"

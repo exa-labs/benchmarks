@@ -88,7 +88,7 @@ async def enrich_results(results: list[SearchResult]) -> list[SearchResult]:
     except Exception as e:
         logger.warning(f"Content fetch failed: {e}")
         return results
-    return [SearchResult(r.url, r.title, contents.get(r.url, r.text), r.metadata) for r in results]
+    return [SearchResult(r.url, r.title, contents.get(r.url) or r.content, r.metadata) for r in results]
 
 
 @dataclass
@@ -254,7 +254,7 @@ def _build_searcher(name: str) -> Searcher | None:
         if name == "exa":
             from shared.searchers import ExaSearcher
 
-            return ExaSearcher(category="people", include_text=True, include_highlights=False)
+            return ExaSearcher(category="people")
         if name == "brave":
             from shared.searchers import BraveSearcher
 

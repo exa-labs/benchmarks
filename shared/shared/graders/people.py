@@ -63,7 +63,7 @@ class PeopleGrader(BaseLLMGrader):
                             query=query,
                             url=result.url,
                             title=result.title,
-                            text=result.text or "(no content)",
+                            text=result.content or "(no content)",
                         ),
                     },
                 ],

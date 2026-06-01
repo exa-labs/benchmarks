@@ -119,7 +119,7 @@ async def enrich_results(results: list[SearchResult]) -> list[SearchResult]:
     except Exception as e:
         logger.warning(f"Content fetch failed: {e}")
         return results
-    return [SearchResult(r.url, r.title, contents.get(r.url, r.text), r.metadata) for r in results]
+    return [SearchResult(r.url, r.title, contents.get(r.url) or r.content, r.metadata) for r in results]
 
 
 @dataclass
@@ -227,7 +227,7 @@ class Benchmark:
                 if config.enrich_exa_contents:
                     results = await enrich_results(results)
 
-                combined_text = "\n\n".join(f"[{r.title}]\n{r.text}" for r in results if r.text)
+                combined_text = "\n\n".join(f"[{r.title}]\n{r.content}" for r in results if r.content)
 
                 answer = await self._extract_answer(q.text, combined_text)
                 grade = await self._grade_rag(q, answer)
@@ -421,7 +421,7 @@ def _build_searcher(name: str) -> Searcher | None:
         if name == "exa":
             from shared.searchers import ExaSearcher
 
-            return ExaSearcher(category="company", include_text=True, include_highlights=False)
+            return ExaSearcher(category="company")
     except (ValueError, ImportError) as e:
         console.print(f"[yellow]{name}: {e}[/yellow]")
     return None

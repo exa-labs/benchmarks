@@ -79,7 +79,7 @@ class RetrievalGrader(BaseLLMGrader):
                             constraints=constraints,
                             url=result.url,
                             title=result.title,
-                            text=result.text[:30000] if result.text else "(no content)",
+                            text=result.content[:30000] if result.content else "(no content)",
                         ),
                     },
                 ],
