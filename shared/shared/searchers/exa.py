@@ -14,7 +14,8 @@ class ExaSearcher(Searcher):
         self,
         api_key: str | None = None,
         base_url: str = "https://api.exa.ai",
-        include_text: bool = True,
+        include_text: bool = False,
+        include_highlights: bool = True,
         category: str | None = None,
         search_type: str = "auto",
         max_characters: int | None = None,
@@ -28,6 +29,7 @@ class ExaSearcher(Searcher):
 
         self.base_url = base_url
         self.include_text = include_text
+        self.include_highlights = include_highlights
         self.category = category
         self.search_type = search_type
         self.max_characters = max_characters
@@ -46,10 +48,17 @@ class ExaSearcher(Searcher):
         if self.category:
             payload["category"] = self.category
 
-        if self.include_text:
-            contents: dict[str, Any] = {"text": True}
-            if self.max_characters:
-                contents["text"] = {"maxCharacters": self.max_characters}
+        if self.include_text or self.include_highlights:
+            contents: dict[str, Any] = {}
+            if self.include_text:
+                contents["text"] = (
+                    {"maxCharacters": self.max_characters} if self.max_characters else True
+                )
+            if self.include_highlights:
+                highlights_config: dict[str, Any] = {"query": query}
+                if self.max_characters:
+                    highlights_config["maxCharacters"] = self.max_characters
+                contents["highlights"] = highlights_config
             if self.max_age_hours is not None:
                 contents["maxAgeHours"] = self.max_age_hours
                 contents["livecrawlTimeout"] = self.livecrawl_timeout
