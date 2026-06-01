@@ -254,7 +254,7 @@ def _build_searcher(name: str) -> Searcher | None:
         if name == "exa":
             from shared.searchers import ExaSearcher
 
-            return ExaSearcher(category="people")
+            return ExaSearcher(category="people", include_text=True, include_highlights=False)
         if name == "brave":
             from shared.searchers import BraveSearcher
 

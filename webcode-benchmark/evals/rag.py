@@ -40,7 +40,7 @@ def load_queries(limit: int | None = None) -> list[dict]:
 
 
 def _build_exa_searcher() -> ExaSearcher:
-    return ExaSearcher(search_type="fast", include_text=False, include_highlights=True, max_age_hours=0)
+    return ExaSearcher(search_type="fast", max_age_hours=0)
 
 
 def _build_brave_searcher() -> BraveSearcher:

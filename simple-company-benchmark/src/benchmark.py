@@ -421,7 +421,7 @@ def _build_searcher(name: str) -> Searcher | None:
         if name == "exa":
             from shared.searchers import ExaSearcher
 
-            return ExaSearcher(category="company")
+            return ExaSearcher(category="company", include_text=True, include_highlights=False)
     except (ValueError, ImportError) as e:
         console.print(f"[yellow]{name}: {e}[/yellow]")
     return None
