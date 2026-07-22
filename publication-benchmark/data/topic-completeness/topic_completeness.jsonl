@@ -1,0 +1,200 @@
+{"query": "3D Gaussian Splatting for real-time SLAM", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "computer vision"}}
+{"query": "Vision Transformers for fine-grained bird recognition", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "computer vision"}}
+{"query": "Diffusion models for monocular depth estimation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "computer vision"}}
+{"query": "Neural radiance fields for novel-view synthesis", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "computer vision"}}
+{"query": "Contrastive vision-language models for zero-shot segmentation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "computer vision"}}
+{"query": "dynamic-scene robustness in Gaussian Splatting SLAM", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "computer vision"}}
+{"query": "patch-token interpretability in fine-grained bird recognition", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "computer vision"}}
+{"query": "low-light robustness in diffusion-based monocular depth estimation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "computer vision"}}
+{"query": "memory efficiency in neural radiance field rendering", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "computer vision"}}
+{"query": "prompt sensitivity in zero-shot vision-language segmentation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "computer vision"}}
+{"query": "Diffusion policies for dexterous robotic manipulation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "robotics"}}
+{"query": "Event-based vision for high-speed drone navigation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "robotics"}}
+{"query": "Graph neural networks for multi-robot task allocation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "robotics"}}
+{"query": "Model predictive control for quadruped locomotion", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "robotics"}}
+{"query": "Tactile transformers for in-hand object pose estimation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "robotics"}}
+{"query": "Sim-to-real robustness in diffusion-policy manipulation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "robotics"}}
+{"query": "Low-light robustness in event-based drone navigation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "robotics"}}
+{"query": "Communication scalability in graph-based multi-robot task allocation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "robotics"}}
+{"query": "Energy efficiency in predictive-control quadruped locomotion", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "robotics"}}
+{"query": "Occlusion robustness in tactile-transformer object pose estimation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "robotics"}}
+{"query": "Diffusion transformers for protein structure generation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "machine learning"}}
+{"query": "Graph neural networks for molecular property prediction", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "machine learning"}}
+{"query": "Neural radiance fields for autonomous vehicle localization", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "machine learning"}}
+{"query": "Contrastive learning for histopathology image classification", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "machine learning"}}
+{"query": "Federated averaging for mobile keyboard prediction", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "machine learning"}}
+{"query": "Sampling efficiency in diffusion-based protein generation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "machine learning"}}
+{"query": "Out-of-distribution robustness in molecular graph prediction", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "machine learning"}}
+{"query": "Weather robustness in radiance-field vehicle localization", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "machine learning"}}
+{"query": "Stain invariance in contrastive histopathology classifiers", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "machine learning"}}
+{"query": "Communication efficiency in federated keyboard prediction", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "machine learning"}}
+{"query": "eBPF tracing for production microservice diagnosis", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "systems"}}
+{"query": "RDMA transport for distributed transaction processing", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "systems"}}
+{"query": "Raft consensus for geo-replicated metadata services", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "systems"}}
+{"query": "Serverless runtimes for latency-sensitive stream processing", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "systems"}}
+{"query": "Learned cache eviction for content delivery networks", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "systems"}}
+{"query": "Tracing overhead in eBPF microservice diagnosis", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "systems"}}
+{"query": "Tail-latency robustness in RDMA transaction processing", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "systems"}}
+{"query": "Partition tolerance in geo-replicated Raft metadata services", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "systems"}}
+{"query": "Cold-start latency in serverless stream processing", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "systems"}}
+{"query": "Workload-shift robustness in learned cache eviction", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "systems"}}
+{"query": "Learned indexes for range query acceleration", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "databases"}}
+{"query": "Serializable snapshot isolation for transaction processing", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "databases"}}
+{"query": "Vector databases for approximate nearest neighbor search", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "databases"}}
+{"query": "Differential privacy for aggregate query answering", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "databases"}}
+{"query": "LSM trees for write-intensive key-value storage", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "databases"}}
+{"query": "Distribution-shift robustness in learned range indexes", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "databases"}}
+{"query": "Abort-rate reduction in serializable snapshot isolation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "databases"}}
+{"query": "Memory efficiency in vector similarity indexing", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "databases"}}
+{"query": "Privacy-budget efficiency in aggregate query answering", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "databases"}}
+{"query": "Write amplification in LSM-tree compaction", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "databases"}}
+{"query": "Effect handlers for modular control-flow abstraction", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "programming languages"}}
+{"query": "Refinement types for static API protocol verification", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "programming languages"}}
+{"query": "E-graph rewriting for compiler optimization", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "programming languages"}}
+{"query": "Gradual typing for legacy code migration", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "programming languages"}}
+{"query": "Abstract interpretation for smart contract vulnerability detection", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "programming languages"}}
+{"query": "Runtime overhead reduction in effect handler implementations", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "programming languages"}}
+{"query": "Counterexample precision in refinement type error reporting", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "programming languages"}}
+{"query": "Rewrite-rule scalability in e-graph compiler optimization", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "programming languages"}}
+{"query": "Boundary robustness in gradually typed legacy systems", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "programming languages"}}
+{"query": "State-space scalability in smart contract abstract interpretation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "programming languages"}}
+{"query": "Graph neural networks for lateral movement detection", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "cybersecurity"}}
+{"query": "Federated learning for malware classification", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "cybersecurity"}}
+{"query": "Symbolic execution for smart contract vulnerability discovery", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "cybersecurity"}}
+{"query": "Moving target defense for cloud workload protection", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "cybersecurity"}}
+{"query": "Transformer models for phishing URL detection", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "cybersecurity"}}
+{"query": "Concept drift robustness in lateral movement detection", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "cybersecurity"}}
+{"query": "Poisoning resilience in federated malware classification", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "cybersecurity"}}
+{"query": "Path explosion mitigation in smart contract symbolic execution", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "cybersecurity"}}
+{"query": "Migration overhead in cloud moving target defense", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "cybersecurity"}}
+{"query": "Adversarial robustness of transformer phishing detectors", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "cybersecurity"}}
+{"query": "Differential privacy for federated medical image classification", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "privacy"}}
+{"query": "Homomorphic encryption for private genomic sequence matching", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "privacy"}}
+{"query": "Secure multiparty computation for cross-bank fraud detection", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "privacy"}}
+{"query": "Private information retrieval for cloud database queries", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "privacy"}}
+{"query": "Trusted execution environments for confidential machine learning inference", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "privacy"}}
+{"query": "Privacy-utility tradeoffs in differentially private medical classifiers", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "privacy"}}
+{"query": "Communication efficiency in homomorphic genomic sequence matching", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "privacy"}}
+{"query": "Collusion robustness in secure cross-bank fraud detection", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "privacy"}}
+{"query": "Query latency in private cloud database retrieval", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "privacy"}}
+{"query": "Side-channel robustness in confidential enclave inference", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "privacy"}}
+{"query": "Gaze tracking for adaptive web navigation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "human-computer interaction"}}
+{"query": "Haptic feedback for prosthetic control", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "human-computer interaction"}}
+{"query": "Conversational agents for cognitive behavioral therapy", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "human-computer interaction"}}
+{"query": "Mid-air gesture recognition for sterile interfaces", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "human-computer interaction"}}
+{"query": "Augmented reality guidance for industrial assembly", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "human-computer interaction"}}
+{"query": "Lighting robustness in gaze-adaptive web navigation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "human-computer interaction"}}
+{"query": "Latency reduction in prosthetic haptic feedback", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "human-computer interaction"}}
+{"query": "Explanation fidelity in therapeutic conversational agents", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "human-computer interaction"}}
+{"query": "User variability in sterile gesture recognition", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "human-computer interaction"}}
+{"query": "Occlusion robustness in augmented assembly guidance", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "human-computer interaction"}}
+{"query": "Perceptron branch prediction for speculative processors", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "computer architecture"}}
+{"query": "Chiplet interconnect design for heterogeneous processors", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "computer architecture"}}
+{"query": "Directory cache coherence for many-core processors", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "computer architecture"}}
+{"query": "Near-memory processing for graph analytics acceleration", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "computer architecture"}}
+{"query": "Reconfigurable dataflow architectures for transformer inference", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "computer architecture"}}
+{"query": "Misprediction recovery latency in perceptron branch predictors", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "computer architecture"}}
+{"query": "Thermal scalability of chiplet interconnect fabrics", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "computer architecture"}}
+{"query": "Directory storage efficiency in many-core cache coherence", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "computer architecture"}}
+{"query": "Bandwidth efficiency in near-memory graph processing", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "computer architecture"}}
+{"query": "Energy efficiency of reconfigurable transformer accelerators", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "computer architecture"}}
+{"query": "CRDT synchronization for collaborative edge applications", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "distributed systems"}}
+{"query": "Erasure coding for fault-tolerant object storage", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "distributed systems"}}
+{"query": "Lease-based caching for distributed database reads", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "distributed systems"}}
+{"query": "Gossip protocols for decentralized failure detection", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "distributed systems"}}
+{"query": "Actor-model scheduling for serverless workflow execution", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "distributed systems"}}
+{"query": "Leader failover latency in geo-replicated Raft clusters", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "distributed systems"}}
+{"query": "Metadata growth control in state-based CRDT synchronization", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "distributed systems"}}
+{"query": "Repair bandwidth efficiency in erasure-coded object storage", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "distributed systems"}}
+{"query": "Clock-skew robustness in lease-based distributed caching", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "distributed systems"}}
+{"query": "False-positive resilience in gossip-based failure detection", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "distributed systems"}}
+{"query": "Physics-informed neural operators for turbulent flow prediction", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "scientific computing"}}
+{"query": "Adaptive finite elements for fracture propagation simulation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "scientific computing"}}
+{"query": "Multigrid preconditioning for incompressible Navier-Stokes solvers", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "scientific computing"}}
+{"query": "GPU-accelerated Monte Carlo for radiative transfer", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "scientific computing"}}
+{"query": "Tensor-train methods for high-dimensional Fokker-Planck equations", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "scientific computing"}}
+{"query": "Boundary-condition robustness in physics-informed neural operators", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "scientific computing"}}
+{"query": "Mesh adaptivity efficiency in finite-element fracture simulation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "scientific computing"}}
+{"query": "Strong-scaling behavior of multigrid Navier-Stokes preconditioners", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "scientific computing"}}
+{"query": "Variance reduction in GPU radiative-transfer Monte Carlo", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "scientific computing"}}
+{"query": "Rank-growth control in tensor-train Fokker-Planck solvers", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "scientific computing"}}
+{"query": "Tensor network methods for quantum many-body ground states", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "physics"}}
+{"query": "Cryogenic calorimetry for sub-GeV dark matter detection", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "physics"}}
+{"query": "Gaussian process inference for gravitational-wave source localization", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "physics"}}
+{"query": "Phase-field modeling for crack propagation in metamaterials", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "physics"}}
+{"query": "Optical tweezers for single-molecule force spectroscopy", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "physics"}}
+{"query": "Bond-dimension scalability in tensor-network ground-state calculations", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "physics"}}
+{"query": "Polarization stability in optical-tweezer force spectroscopy", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "physics"}}
+{"query": "Threshold stability in cryogenic dark matter calorimetry", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "physics"}}
+{"query": "Calibration uncertainty in Gaussian-process gravitational-wave source localization", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "physics"}}
+{"query": "Mesh sensitivity in phase-field metamaterial fracture simulations", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "physics"}}
+{"query": "Graph neural networks for surface-code decoding", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "quantum information"}}
+{"query": "Variational quantum algorithms for molecular ground-state estimation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "quantum information"}}
+{"query": "Measurement-device-independent protocols for quantum key distribution", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "quantum information"}}
+{"query": "Tensor-network simulation of noisy quantum circuits", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "quantum information"}}
+{"query": "Bosonic error correction for quantum memory", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "quantum information"}}
+{"query": "Decoder latency in surface-code fault tolerance", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "quantum information"}}
+{"query": "Noise resilience of variational ground-state estimation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "quantum information"}}
+{"query": "Finite-key security in measurement-device-independent quantum cryptography", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "quantum information"}}
+{"query": "Readout-error resilience in noisy tensor-network simulation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "quantum information"}}
+{"query": "Photon-loss robustness of bosonic quantum memories", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "quantum information"}}
+{"query": "Phase-field modeling for lithium dendrite growth", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "materials science"}}
+{"query": "Atomic layer deposition for conformal oxide coatings", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "materials science"}}
+{"query": "Cryogenic electron microscopy for polymer morphology mapping", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "materials science"}}
+{"query": "Laser powder bed fusion for titanium microstructure control", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "materials science"}}
+{"query": "Solid-state NMR for ion transport characterization", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "materials science"}}
+{"query": "Electrolyte concentration effects in lithium dendrite growth", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "materials science"}}
+{"query": "Out-of-distribution robustness in crystal property prediction", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "materials science"}}
+{"query": "Thickness uniformity in atomic-layer-deposited oxide coatings", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "materials science"}}
+{"query": "Beam damage resistance during polymer morphology mapping", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "materials science"}}
+{"query": "Porosity suppression in laser-fused titanium components", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "materials science"}}
+{"query": "Physics-informed neural networks for regional climate downscaling", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "climate science"}}
+{"query": "Data assimilation for seasonal drought forecasting", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "climate science"}}
+{"query": "Convolutional networks for atmospheric river detection", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "climate science"}}
+{"query": "Bayesian inversion for methane source attribution", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "climate science"}}
+{"query": "Earth system models for carbon cycle projection", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "climate science"}}
+{"query": "Extreme-event fidelity in neural climate downscaling", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "climate science"}}
+{"query": "Soil-moisture sensitivity in seasonal drought assimilation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "climate science"}}
+{"query": "False-positive control in atmospheric river detection", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "climate science"}}
+{"query": "Prior sensitivity in Bayesian methane inversion", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "climate science"}}
+{"query": "Permafrost carbon representation in Earth system models", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "climate science"}}
+{"query": "Bayesian lineage tracing for clonal dynamics inference", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "quantitative biology"}}
+{"query": "Neural ODEs for gene regulatory network reconstruction", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "quantitative biology"}}
+{"query": "Spatial point processes for tissue architecture modeling", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "quantitative biology"}}
+{"query": "Mechanistic pharmacokinetic modeling for individualized dose prediction", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "quantitative biology"}}
+{"query": "Topological data analysis for protein conformational classification", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "quantitative biology"}}
+{"query": "Posterior calibration in Bayesian clonal dynamics inference", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "quantitative biology"}}
+{"query": "Noise robustness in neural gene network reconstruction", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "quantitative biology"}}
+{"query": "Boundary correction in tissue spatial point processes", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "quantitative biology"}}
+{"query": "Parameter identifiability in individualized pharmacokinetic models", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "quantitative biology"}}
+{"query": "Conformational stability sensitivity in topological protein classification", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "quantitative biology"}}
+{"query": "Two-photon calcium imaging for cortical ensemble decoding", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "neuroscience"}}
+{"query": "Optogenetic stimulation for hippocampal memory engram mapping", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "neuroscience"}}
+{"query": "Graph neural networks for connectome-based disease classification", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "neuroscience"}}
+{"query": "Closed-loop deep brain stimulation for tremor suppression", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "neuroscience"}}
+{"query": "Spatial transcriptomics for neuronal subtype localization", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "neuroscience"}}
+{"query": "Motion artifact robustness in two-photon calcium imaging", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "neuroscience"}}
+{"query": "Cell-type specificity in optogenetic engram mapping", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "neuroscience"}}
+{"query": "Cross-site generalization in connectome disease classification", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "neuroscience"}}
+{"query": "Battery efficiency in closed-loop deep brain stimulation", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "neuroscience"}}
+{"query": "Spatial resolution limits in neuronal transcriptomic localization", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "neuroscience"}}
+{"query": "CRISPR base editing for sickle cell correction", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "medicine"}}
+{"query": "Federated learning for diabetic retinopathy screening", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "medicine"}}
+{"query": "MRI radiomics for glioma grading", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "medicine"}}
+{"query": "mRNA lipid nanoparticles for pancreatic cancer vaccination", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "medicine"}}
+{"query": "Closed-loop insulin delivery for glycemic control", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "medicine"}}
+{"query": "Off-target mutagenesis in sickle cell base editing", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "medicine"}}
+{"query": "Cross-hospital calibration in federated retinopathy screening", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "medicine"}}
+{"query": "Scanner-shift robustness in MRI glioma radiomics", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "medicine"}}
+{"query": "Endosomal escape efficiency of pancreatic cancer mRNA vaccines", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "medicine"}}
+{"query": "Hypoglycemia resilience in closed-loop insulin delivery", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "medicine"}}
+{"query": "Synthetic control for regional policy impact estimation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "economics"}}
+{"query": "Regression discontinuity for minimum wage employment effects", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "economics"}}
+{"query": "Agent-based modeling of housing market cycles", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "economics"}}
+{"query": "Causal forests for heterogeneous tax response estimation", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "economics"}}
+{"query": "Dynamic stochastic general equilibrium for inflation forecasting", "source": "publication-topic-completeness", "metadata": {"level": "clean_topic", "field": "economics"}}
+{"query": "Placebo-test robustness in synthetic control policy estimates", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "economics"}}
+{"query": "Bandwidth sensitivity in minimum wage discontinuity estimates", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "economics"}}
+{"query": "Computational scalability of agent-based housing simulations", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "economics"}}
+{"query": "Interpretability of heterogeneous tax response estimates", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "economics"}}
+{"query": "Parameter-identification robustness in inflation forecasting models", "source": "publication-topic-completeness", "metadata": {"level": "single_aspect", "field": "economics"}}

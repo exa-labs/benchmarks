@@ -9,6 +9,7 @@ Open benchmarks for evaluating search APIs.
 | [WebCode](webcode-benchmark/) | ~840 | Contents, Highlights, RAG, E2E | Code docs extraction, query-aware highlights, long-context QA |
 | [People Search](simple-people-benchmark/) | 1,400 | Retrieval | Find people profiles by role, location, seniority |
 | [Company Search](simple-company-benchmark/) | ~800 | Retrieval + RAG | Find companies by name, industry, geography, funding |
+| [Publication Retrieval](publication-benchmark/) | 1,866 | Paper, ToT | Find the exact academic paper by grounded question or tip-of-the-tongue recollection |
 
 ## WebCode Results
 
@@ -114,6 +115,20 @@ export OPENAI_API_KEY="your-key"
 cbench --limit 50
 cbench --track retrieval
 cbench --track rag
+```
+
+### Publication Retrieval Benchmark
+
+```bash
+cd publication-benchmark
+uv sync
+
+export EXA_API_KEY="your-key"
+
+pubbench --limit 50
+pubbench --track paper
+pubbench --track tot
+pubbench --searchers exa brave parallel --output results.json
 ```
 
 ## Implementing Your Own Searcher

@@ -5,7 +5,7 @@ description = "Exa search benchmarks"
 requires-python = ">=3.11"
 
 [tool.uv.workspace]
-members = ["shared", "simple-people-benchmark", "simple-company-benchmark", "webcode-benchmark"]
+members = ["shared", "simple-people-benchmark", "simple-company-benchmark", "webcode-benchmark", "publication-benchmark"]
 
 [tool.ruff]
 line-length = 100
