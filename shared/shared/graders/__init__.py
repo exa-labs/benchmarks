@@ -1,5 +1,6 @@
 from .base import BaseLLMGrader, GradeResult
 from .contents import ContentsGrader
+from .paper import PaperRetrievalGrader
 from .people import PeopleGrader
 from .rag import Citation, GroundedRAGGrader, RAGGrader
 from .retrieval import RetrievalGrader
@@ -11,6 +12,7 @@ __all__ = [
     "ContentsGrader",
     "GradeResult",
     "GroundedRAGGrader",
+    "PaperRetrievalGrader",
     "PeopleGrader",
     "RAGGrader",
     "RetrievalGrader",

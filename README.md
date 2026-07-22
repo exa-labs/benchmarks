@@ -9,6 +9,7 @@ Open benchmarks for evaluating search APIs.
 | [WebCode](webcode-benchmark/) | ~840 | Contents, Highlights, RAG, E2E | Code docs extraction, query-aware highlights, long-context QA |
 | [People Search](simple-people-benchmark/) | 1,400 | Retrieval | Find people profiles by role, location, seniority |
 | [Company Search](simple-company-benchmark/) | ~800 | Retrieval + RAG | Find companies by name, industry, geography, funding |
+| [Publication Retrieval](publication-benchmark/) | 1,866 | Publication, ToT | Find the exact publication by grounded question or tip-of-the-tongue recollection |
 
 ## WebCode Results
 
@@ -68,6 +69,25 @@ Two tracks designed to separate retrieval from fact extraction.
 | brave | 65% |
 | parallel | 66% |
 
+## Publication Retrieval Results
+
+**Tip-of-the-Tongue (ToT) Track**
+
+| Searcher | Recall | MRR | Mean latency ± SEM |
+|----------|-------:|----:|-------------------:|
+| Exa | 86.4% | 0.726 | 0.578 ± 0.012 s |
+| Perplexity | 66.8% | 0.568 | 1.277 ± 0.016 s |
+| Parallel Advanced | 50.0% | 0.312 | 3.118 ± 0.082 s |
+| Google Scholar | 28.0% | 0.179 | 1.098 ± 0.053 s |
+
+**Publication Track**
+
+| Searcher | Recall | MRR | Mean latency ± SEM |
+|----------|-------:|----:|-------------------:|
+| Exa | 68.0% | 0.583 | 0.681 ± 0.034 s |
+| Perplexity | 54.0% | 0.475 | 1.169 ± 0.012 s |
+| Parallel Advanced | 52.0% | 0.349 | 2.924 ± 0.069 s |
+
 ## Quick Start
 
 ```bash
@@ -114,6 +134,20 @@ export OPENAI_API_KEY="your-key"
 cbench --limit 50
 cbench --track retrieval
 cbench --track rag
+```
+
+### Publication Retrieval Benchmark
+
+```bash
+cd publication-benchmark
+uv sync
+
+export EXA_API_KEY="your-key"
+
+pubbench --limit 50
+pubbench --track paper
+pubbench --track tot
+pubbench --searchers exa brave parallel --output results.json
 ```
 
 ## Implementing Your Own Searcher
