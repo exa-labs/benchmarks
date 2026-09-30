@@ -20,7 +20,7 @@ from pydantic import BaseModel, ValidationError
 from harness.llm.clients import ModelClient, create_client
 from harness.llm.types import Usage
 
-DEFAULT_JUDGE_MODEL = "openai/gpt-5.6-luna"
+DEFAULT_JUDGE_MODEL = "openai/gpt-6-luna"
 
 _T = TypeVar("_T", bound=BaseModel)
 _JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)

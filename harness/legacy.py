@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 
 from harness.cli import main, positive_int
+from harness.llm.judge import DEFAULT_JUDGE_MODEL
 from harness.runner import DEFAULT_RUNS_ROOT
 
 _DEFAULTS = {
@@ -47,7 +48,7 @@ def legacy_main(family: str, argv: list[str] | None = None) -> None:
     parser.add_argument("--output", "-o")
     parser.add_argument("--concurrency", type=positive_int, default=5)
     parser.add_argument(
-        "--grader-model", "--judge-model", dest="judge_model", default="openai/gpt-5.6-luna"
+        "--grader-model", "--judge-model", dest="judge_model", default=DEFAULT_JUDGE_MODEL
     )
     parser.add_argument("--rag-model", "--model", dest="model")
     parser.add_argument("--runs-dir", default=str(DEFAULT_RUNS_ROOT))

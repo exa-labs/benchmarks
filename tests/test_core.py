@@ -719,6 +719,26 @@ def test_token_cost_conventions():
     assert token_cost("openai/unknown-model", usage, cached_included_in_input=True) is None
 
 
+@pytest.mark.parametrize(
+    "input_tokens,expected_cost",
+    [(272_000, 2.626), (272_001, 5.22702)],
+)
+def test_astra_long_context_pricing(input_tokens, expected_cost):
+    usage = Usage(input_tokens=input_tokens, output_tokens=1000, cached_input_tokens=16_000)
+    assert token_cost("openai/gpt-6-astra", usage, cached_included_in_input=True) == pytest.approx(
+        expected_cost
+    )
+
+
+def test_opus_55_cache_pricing():
+    usage = Usage(
+        input_tokens=1000, output_tokens=100, cached_input_tokens=400, cache_creation_tokens=200
+    )
+    assert token_cost(
+        "anthropic/claude-opus-5-5", usage, cached_included_in_input=False
+    ) == pytest.approx(0.00708)
+
+
 # --------------------------------------------------------------------------- judge
 
 

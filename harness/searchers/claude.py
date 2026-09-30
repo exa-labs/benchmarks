@@ -14,7 +14,7 @@ class ClaudeWebFetchSearcher(Searcher):
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "claude-haiku-4-5-20251001",
+        model: str = "claude-opus-5-5",
         max_tokens: int = 16384,
         tool_version: str = "web_fetch_20250910",
     ):

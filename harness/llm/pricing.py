@@ -21,10 +21,23 @@ class ModelPrice:
     output: float
     cached_input: float
     cache_creation: float | None = None
+    long_context_threshold: int | None = None
+    long_context_input_multiplier: float = 1.0
+    long_context_output_multiplier: float = 1.0
 
 
 _PRICES: dict[str, ModelPrice] = {
     # https://openai.com/api/pricing
+    # https://developers.openai.com/api/docs/models/gpt-6-astra
+    "openai/gpt-6-astra": ModelPrice(
+        10.00,
+        50.00,
+        1.00,
+        12.50,
+        long_context_threshold=272_000,
+        long_context_input_multiplier=2.0,
+        long_context_output_multiplier=1.5,
+    ),
     "openai/gpt-6-luna": ModelPrice(0.10, 0.50, 0.01, 0.125),
     "openai/gpt-5.6-sol": ModelPrice(5.00, 30.00, 0.50),
     "openai/gpt-5.6-terra": ModelPrice(2.00, 12.00, 0.20),
@@ -34,6 +47,8 @@ _PRICES: dict[str, ModelPrice] = {
     "openai/gpt-5.4-mini": ModelPrice(0.75, 4.50, 0.075),
     "openai/gpt-5.4-nano": ModelPrice(0.20, 1.25, 0.02),
     # https://www.anthropic.com/pricing#api
+    # https://platform.claude.com/docs/en/about-claude/pricing
+    "anthropic/claude-opus-5-5": ModelPrice(4.00, 20.00, 0.20, 5.00),
     "anthropic/claude-opus-5": ModelPrice(5.00, 25.00, 0.50, 6.25),
     "anthropic/claude-sonnet-5": ModelPrice(2.00, 10.00, 0.20, 2.50),
     "anthropic/claude-opus-4-7": ModelPrice(5.00, 25.00, 0.50, 6.25),
@@ -78,12 +93,19 @@ def token_cost(model: str, usage: Usage, *, cached_included_in_input: bool) -> f
     cache_creation_rate = (
         price.cache_creation if price.cache_creation is not None else price.input * 1.25
     )
-    return (
+    input_cost = (
         uncached * price.input
         + usage.cached_input_tokens * price.cached_input
         + usage.cache_creation_tokens * cache_creation_rate
-        + usage.output_tokens * price.output
-    ) / 1_000_000
+    )
+    output_cost = usage.output_tokens * price.output
+    if (
+        price.long_context_threshold is not None
+        and usage.input_tokens > price.long_context_threshold
+    ):
+        input_cost *= price.long_context_input_multiplier
+        output_cost *= price.long_context_output_multiplier
+    return (input_cost + output_cost) / 1_000_000
 
 
 def hosted_search_cost(provider: str, num_searches: int) -> float:
