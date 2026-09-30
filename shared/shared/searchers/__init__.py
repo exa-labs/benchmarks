@@ -1,4 +1,4 @@
-from .base import Searcher, SearchResult
+from .base import Searcher, SearchResponse, SearchResult
 from .brave import BraveSearcher
 from .claude import ClaudeWebFetchSearcher
 from .exa import ExaSearcher
@@ -12,6 +12,7 @@ __all__ = [
     "ExaSearcher",
     "ParallelSearcher",
     "PerplexitySearcher",
+    "SearchResponse",
     "SearchResult",
     "Searcher",
     "TavilySearcher",
