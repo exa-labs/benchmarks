@@ -71,14 +71,18 @@ Built-in systems (`uv run bench list` prints the live catalog):
 | Perplexity Search | `scout-perplexity-web`, `scout-perplexity-fast` |
 | Parallel Search | `scout-parallel-turbo`, `scout-parallel-fast`, `scout-parallel-basic`, `scout-parallel-advanced` |
 | Brave LLM Context | `scout-brave-llm-context` |
-| OpenAI hosted web search | `openai-native-search`, `openai-native-search-luna` |
+| OpenAI hosted web search | `openai-native-search` |
 | Anthropic hosted web search | `anthropic-native-search` |
 
 Each of the ten API presets also has `rag-` and `search-` variants. Brave uses only
 LLM Context; its `/web/search` endpoint is not supported.
 
-Scout and RAG systems default to `openai/gpt-5.6-luna`; pass `--model` to run any of them
-with another OpenAI or Anthropic model (native-search systems stay on their own provider).
+Scout, RAG and Extract + RAG default to `openai/gpt-5.6-luna`. Native-search presets
+override this: `openai-native-search` uses `openai/gpt-5.6-terra`, and
+`anthropic-native-search` uses `anthropic/claude-sonnet-5`. The Claude extraction
+preset uses `claude-sonnet-4-6` to fetch evidence, then Luna to synthesize the answer.
+Pass `--model` to override the answering model (native-search systems stay on their
+own provider); it does not change the extraction model.
 
 ### Suites
 

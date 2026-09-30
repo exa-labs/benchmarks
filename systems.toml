@@ -187,11 +187,6 @@ kind = "scout"
 model = "openai/gpt-5.6-terra"
 hosted_web_search = {}
 
-[systems.openai-native-search-luna]
-kind = "scout"
-model = "openai/gpt-5.6-luna"
-hosted_web_search = {}
-
 [systems.anthropic-native-search]
 kind = "scout"
 model = "anthropic/claude-sonnet-5"
