@@ -89,8 +89,10 @@ The judge defaults to `openai/gpt-5.6-luna` (`--judge-model` overrides it).
 Publication grading is deterministic and needs no model key. Empty retrievals
 receive zero recall and precision. WebCode E2E remains a **dataset-only export**
 of 33 tasks, outside the runnable suite catalog; it has no coding-agent executor
-or bundled setup files. The Contents track has been removed because its licensed
-reference data is unavailable.
+or bundled setup files. WebCode Contents retains its 250 URL/title/tag records in
+[`benchmarks/webcode/data/contents.jsonl`](benchmarks/webcode/data/contents.jsonl)
+as a dataset-only export. Its runner is removed because the required licensed
+`golden_markdown.jsonl` reference data is unavailable.
 
 ### Quick start
 
@@ -222,7 +224,7 @@ own terms:
 
 | Benchmark | Queries | Tracks | Description |
 |-----------|---------|--------|-------------|
-| [WebCode](benchmarks/webcode/) | 557 + 33 | Highlights, RAG; E2E dataset only | Code documentation retrieval and grounded QA |
+| [WebCode](benchmarks/webcode/) | 557 runnable + 283 dataset only | Highlights, RAG; Contents and E2E dataset only | Code documentation retrieval and grounded QA |
 | [People Search](benchmarks/people/) | 1,400 | Retrieval | Find people profiles by role, location, seniority |
 | [Company Search](benchmarks/company/) | ~800 | Retrieval + RAG | Find companies by name, industry, geography, funding |
 | [Publication Retrieval](benchmarks/publication/) | 1,866 | Publication, ToT | Find the exact publication by grounded question or tip-of-the-tongue recollection |
