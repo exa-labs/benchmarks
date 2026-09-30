@@ -1,6 +1,17 @@
 # Exa Search Benchmarks
 
-Open datasets and a shared evaluation harness for search APIs.
+Open datasets and a shared evaluation harness for search APIs, with 11 runnable
+suites across the Exa datasets and four public benchmarks below.
+
+**Scout evaluates search tools on agentic tasks.** It swaps Exa, Perplexity,
+Parallel or Brave into a standard research agent while keeping the model,
+prompts, research loop and budgets fixed across the search API presets. The agent
+searches repeatedly, follows up on results and synthesizes an answer from the
+evidence it retrieves. Each adapter preserves its provider's search request format.
+
+The runner also supports single-step RAG, direct retrieval, URL extraction + RAG
+and OpenAI/Anthropic hosted web search. All modes share grading, resumable runs,
+cost reporting and 95% bootstrap confidence intervals.
 
 ## Benchmarks
 
@@ -137,7 +148,7 @@ Remove `--dry-run` to execute; remove `--limit` for the full datasets.
 
 ## Systems and Models
 
-**Scout** researches through repeated searches. **RAG** searches once, then answers.
+**RAG** searches once, then answers.
 **Search** grades ranked results directly. **Extract + RAG** answers from a supplied URL.
 
 The ten primary API presets below each have `scout-`, `rag-` and `search-` variants
@@ -151,8 +162,13 @@ The ten primary API presets below each have `scout-`, `rag-` and `search-` varia
 | Parallel Search | `parallel-turbo`, `parallel-fast`, `parallel-basic`, `parallel-advanced` |
 | Brave LLM Context | `brave-llm-context` |
 
-OpenAI and Anthropic hosted search run through Scout. URL extraction supports
-Exa, Parallel and Claude. Set the corresponding `PERPLEXITY_API_KEY`,
+[`search_evals`](https://github.com/perplexityai/search_evals) evaluates hosted
+agent systems, including Exa Agent and Parallel Task. Those endpoints are outside
+this catalog: the Scout API presets evaluate search tools inside our shared agent.
+`openai-native-search` and `anthropic-native-search` use hosted web search within
+Scout and measure the provider's model and search together.
+
+URL extraction supports Exa, Parallel and Claude. Set the corresponding `PERPLEXITY_API_KEY`,
 `PARALLEL_API_KEY`, `BRAVE_SEARCH_API_KEY` or `ANTHROPIC_API_KEY` when using them.
 
 | Role | Default model |
