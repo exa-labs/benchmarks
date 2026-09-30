@@ -1,0 +1,267 @@
+# Search backends and shared execution defaults. Provider options live here once.
+
+[defaults.scout]
+# Model inherits SCOUT_DEFAULT from harness/llm/__init__.py.
+reasoning_effort = "medium"
+max_output_tokens = 32000
+max_rounds = 25
+max_no_tool_nudges = 3
+timeout_s = 3600
+num_results = 10
+
+[defaults.rag]
+model = "openai/gpt-5.6-luna"
+num_results = 10
+
+[defaults.search]
+num_results = 10
+
+[defaults.extract-rag]
+model = "openai/gpt-5.6-luna"
+num_results = 1
+
+[searchers.exa-instant-highlights]
+provider = "exa"
+type = "instant"
+contents = { highlights = true }
+
+[searchers.exa-fast-highlights]
+provider = "exa"
+type = "fast"
+contents = { highlights = true }
+
+[searchers.exa-auto-highlights]
+provider = "exa"
+type = "auto"
+contents = { highlights = true }
+
+[searchers.perplexity-web]
+provider = "perplexity"
+search_type = "web"
+
+[searchers.perplexity-fast]
+provider = "perplexity"
+search_type = "fast"
+
+[searchers.parallel-turbo]
+provider = "parallel"
+mode = "turbo"
+
+[searchers.parallel-fast]
+provider = "parallel"
+mode = "fast"
+
+[searchers.parallel-basic]
+provider = "parallel"
+mode = "basic"
+
+[searchers.parallel-advanced]
+provider = "parallel"
+mode = "advanced"
+
+[searchers.brave-llm-context]
+provider = "brave"
+
+[systems.scout-exa-instant-highlights]
+kind = "scout"
+searcher = "exa-instant-highlights"
+
+[systems.rag-exa-instant-highlights]
+kind = "rag"
+searcher = "exa-instant-highlights"
+
+[systems.search-exa-instant-highlights]
+kind = "search"
+searcher = "exa-instant-highlights"
+
+[systems.scout-exa-fast-highlights]
+kind = "scout"
+searcher = "exa-fast-highlights"
+
+[systems.rag-exa-fast-highlights]
+kind = "rag"
+searcher = "exa-fast-highlights"
+
+[systems.search-exa-fast-highlights]
+kind = "search"
+searcher = "exa-fast-highlights"
+
+[systems.scout-exa-auto-highlights]
+kind = "scout"
+searcher = "exa-auto-highlights"
+
+[systems.rag-exa-auto-highlights]
+kind = "rag"
+searcher = "exa-auto-highlights"
+
+[systems.search-exa-auto-highlights]
+kind = "search"
+searcher = "exa-auto-highlights"
+
+[systems.scout-perplexity-web]
+kind = "scout"
+searcher = "perplexity-web"
+
+[systems.rag-perplexity-web]
+kind = "rag"
+searcher = "perplexity-web"
+
+[systems.search-perplexity-web]
+kind = "search"
+searcher = "perplexity-web"
+
+[systems.scout-perplexity-fast]
+kind = "scout"
+searcher = "perplexity-fast"
+
+[systems.rag-perplexity-fast]
+kind = "rag"
+searcher = "perplexity-fast"
+
+[systems.search-perplexity-fast]
+kind = "search"
+searcher = "perplexity-fast"
+
+[systems.scout-parallel-turbo]
+kind = "scout"
+searcher = "parallel-turbo"
+
+[systems.rag-parallel-turbo]
+kind = "rag"
+searcher = "parallel-turbo"
+
+[systems.search-parallel-turbo]
+kind = "search"
+searcher = "parallel-turbo"
+
+[systems.scout-parallel-fast]
+kind = "scout"
+searcher = "parallel-fast"
+
+[systems.rag-parallel-fast]
+kind = "rag"
+searcher = "parallel-fast"
+
+[systems.search-parallel-fast]
+kind = "search"
+searcher = "parallel-fast"
+
+[systems.scout-parallel-basic]
+kind = "scout"
+searcher = "parallel-basic"
+
+[systems.rag-parallel-basic]
+kind = "rag"
+searcher = "parallel-basic"
+
+[systems.search-parallel-basic]
+kind = "search"
+searcher = "parallel-basic"
+
+[systems.scout-parallel-advanced]
+kind = "scout"
+searcher = "parallel-advanced"
+
+[systems.rag-parallel-advanced]
+kind = "rag"
+searcher = "parallel-advanced"
+
+[systems.search-parallel-advanced]
+kind = "search"
+searcher = "parallel-advanced"
+
+[systems.scout-brave-llm-context]
+kind = "scout"
+searcher = "brave-llm-context"
+
+[systems.rag-brave-llm-context]
+kind = "rag"
+searcher = "brave-llm-context"
+
+[systems.search-brave-llm-context]
+kind = "search"
+searcher = "brave-llm-context"
+
+[systems.openai-native-search]
+kind = "scout"
+model = "openai/gpt-6-astra"
+hosted_web_search = {}
+
+[systems.anthropic-native-search]
+kind = "scout"
+model = "anthropic/claude-opus-5-5"
+hosted_web_search = { max_uses = 15 }
+
+# Task-specific extraction/search settings used by legacy entry points.
+[searchers.exa-people]
+provider = "exa"
+category = "people"
+[searchers.exa-company]
+provider = "exa"
+category = "company"
+[searchers.exa-publication]
+provider = "exa"
+category = "publication"
+include_text = true
+[searchers.brave-people]
+provider = "brave"
+site_filter = "linkedin.com/in"
+[searchers.parallel-people]
+provider = "parallel"
+source_policy = { include_domains = ["linkedin.com"] }
+[searchers.exa-webcode]
+provider = "exa"
+type = "fast"
+max_age_hours = 0
+[searchers.exa-extract]
+provider = "exa"
+extract_mode = "highlights"
+max_characters = 4000
+max_age_hours = 0
+[searchers.parallel-extract]
+provider = "parallel"
+excerpt_max_chars = 4000
+[searchers.claude-extract]
+provider = "claude"
+tool_version = "web_fetch_20260209"
+model = "claude-opus-5-5"
+
+[systems.search-exa-people]
+kind = "search"
+searcher = "exa-people"
+
+[systems.search-exa-company]
+kind = "search"
+searcher = "exa-company"
+
+[systems.search-exa-publication]
+kind = "search"
+searcher = "exa-publication"
+
+[systems.search-brave-people]
+kind = "search"
+searcher = "brave-people"
+
+[systems.search-parallel-people]
+kind = "search"
+searcher = "parallel-people"
+
+[systems.rag-exa-company]
+kind = "rag"
+searcher = "exa-company"
+
+[systems.rag-exa-webcode]
+kind = "rag"
+searcher = "exa-webcode"
+
+[systems.extract-rag-exa-extract]
+kind = "extract-rag"
+searcher = "exa-extract"
+
+[systems.extract-rag-parallel-extract]
+kind = "extract-rag"
+searcher = "parallel-extract"
+
+[systems.extract-rag-claude-extract]
+kind = "extract-rag"
+searcher = "claude-extract"
