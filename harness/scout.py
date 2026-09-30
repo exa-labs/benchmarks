@@ -32,6 +32,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any, TypeVar
 
+from harness.llm import LLM_DEFAULT
 from harness.llm.clients import ModelClient, create_client
 from harness.llm.pricing import hosted_search_cost
 from harness.llm.types import ContextWindowExceeded, Generation, ToolCall, Usage
@@ -119,7 +120,7 @@ class ScoutConfig:
     to each model call separately, not to the whole trajectory.
     """
 
-    model: str
+    model: str = LLM_DEFAULT
     reasoning_effort: str | None = None
     temperature: float | None = None
     max_output_tokens: int | None = 32_000

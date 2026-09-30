@@ -1,7 +1,7 @@
 # Search backends and shared execution defaults. Provider options live here once.
 
 [defaults.scout]
-model = "openai/gpt-5.6-luna"
+# Model inherits LLM_DEFAULT from harness/llm/__init__.py.
 reasoning_effort = "medium"
 max_output_tokens = 32000
 max_rounds = 25
