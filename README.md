@@ -162,12 +162,6 @@ The ten primary API presets below each have `scout-`, `rag-` and `search-` varia
 | Parallel Search | `parallel-turbo`, `parallel-fast`, `parallel-basic`, `parallel-advanced` |
 | Brave LLM Context | `brave-llm-context` |
 
-[`search_evals`](https://github.com/perplexityai/search_evals) evaluates hosted
-agent systems, including Exa Agent and Parallel Task. Those endpoints are outside
-this catalog: the Scout API presets evaluate search tools inside our shared agent.
-`openai-native-search` and `anthropic-native-search` use hosted web search within
-Scout and measure the provider's model and search together.
-
 URL extraction supports Exa, Parallel and Claude. Set the corresponding `PERPLEXITY_API_KEY`,
 `PARALLEL_API_KEY`, `BRAVE_SEARCH_API_KEY` or `ANTHROPIC_API_KEY` when using them.
 
