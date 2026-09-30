@@ -26,7 +26,6 @@ from harness.searchers import (
     ParallelSearcher,
     PerplexitySearcher,
     Searcher,
-    TavilySearcher,
 )
 from harness.suite import Suite, Task
 from harness.tools import SearchTool
@@ -61,8 +60,6 @@ def build_searcher(provider: str, options: dict[str, Any]) -> Searcher:
         return ParallelSearcher(**options)
     if provider == "perplexity":
         return PerplexitySearcher(**options)
-    if provider == "tavily":
-        return TavilySearcher(**options)
     if provider == "claude":
         return ClaudeWebFetchSearcher(**options)
     raise ValueError(f"unknown search provider {provider!r}")

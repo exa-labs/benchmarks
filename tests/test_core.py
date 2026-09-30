@@ -776,7 +776,6 @@ async def test_every_catalog_system_builds(monkeypatch):
         "BRAVE_SEARCH_API_KEY",
         "PARALLEL_API_KEY",
         "PERPLEXITY_API_KEY",
-        "TAVILY_API_KEY",
     ):
         monkeypatch.setenv(name, "test")
     catalog = Catalog.load()

@@ -226,9 +226,6 @@ max_age_hours = 0
 [searchers.parallel-extract]
 provider = "parallel"
 excerpt_max_chars = 4000
-[searchers.tavily]
-provider = "tavily"
-chunks_per_source = 5
 [searchers.claude-extract]
 provider = "claude"
 tool_version = "web_fetch_20260209"
@@ -262,10 +259,6 @@ searcher = "exa-company"
 kind = "rag"
 searcher = "exa-webcode"
 
-[systems.rag-tavily]
-kind = "rag"
-searcher = "tavily"
-
 [systems.extract-rag-exa-extract]
 kind = "extract-rag"
 searcher = "exa-extract"
@@ -273,10 +266,6 @@ searcher = "exa-extract"
 [systems.extract-rag-parallel-extract]
 kind = "extract-rag"
 searcher = "parallel-extract"
-
-[systems.extract-rag-tavily]
-kind = "extract-rag"
-searcher = "tavily"
 
 [systems.extract-rag-claude-extract]
 kind = "extract-rag"

@@ -25,7 +25,6 @@ def system_name(family: str, track: str, provider: str) -> str:
         "brave": "brave-llm-context",
         "parallel": "parallel-advanced",
         "perplexity": "perplexity-web",
-        "tavily": "tavily",
     }
     if family == "people":
         base.update(exa="exa-people", brave="brave-people", parallel="parallel-people")

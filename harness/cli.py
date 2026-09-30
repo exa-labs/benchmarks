@@ -46,7 +46,6 @@ PROVIDER_KEYS = {
     "brave": ("BRAVE_SEARCH_API_KEY", "BRAVE_API_KEY"),
     "parallel": ("PARALLEL_API_KEY", "PARALLELS_API_KEY"),
     "perplexity": ("PERPLEXITY_API_KEY",),
-    "tavily": ("TAVILY_API_KEY",),
     "claude": ("ANTHROPIC_API_KEY",),
 }
 

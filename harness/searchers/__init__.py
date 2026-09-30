@@ -4,7 +4,6 @@ from .claude import ClaudeWebFetchSearcher
 from .exa import ExaSearcher
 from .parallel import ParallelSearcher
 from .perplexity import PerplexitySearcher
-from .tavily import TavilySearcher
 
 __all__ = [
     "BraveSearcher",
@@ -15,5 +14,4 @@ __all__ = [
     "SearchResponse",
     "SearchResult",
     "Searcher",
-    "TavilySearcher",
 ]

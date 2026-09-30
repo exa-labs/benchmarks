@@ -287,7 +287,6 @@ or referenced setup files.
 | Brave | 76.3 | 1229 | **0.328** |
 | Parallel | 75.3 | 622 | 0.168 |
 | Perplexity | 64.6 | 754 | 0.220 |
-| Tavily | 61.1 | 464 | 0.159 |
 
 See the [WebCode datasets](data/webcode/) and [blog post](https://exa.ai/blog/webcode).
 
