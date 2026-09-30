@@ -224,7 +224,7 @@ class OpenAIClient(ModelClient):
                     "type": "json_schema",
                     "name": response_schema["name"],
                     "schema": response_schema["schema"],
-                    "strict": False,
+                    "strict": True,
                 }
             }
         return request

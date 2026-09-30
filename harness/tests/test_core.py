@@ -725,7 +725,28 @@ async def test_judge_uses_structured_outputs_when_available():
     assert parsed.label == "yes" and response.cost_usd == 0.002
     request = client.requests[0]
     assert request["response_schema"]["name"] == "_Verdict"
+    assert request["response_schema"]["schema"]["additionalProperties"] is False
+    assert request["response_schema"]["schema"]["required"] == ["label"]
     assert request["messages"][-1]["content"] == "grade it"
+
+
+def test_openai_structured_outputs_are_strict():
+    client = openai_client.OpenAIClient("openai/gpt-5.6-luna", client=object())
+    request = client.build_request(
+        [{"role": "user", "content": "u"}],
+        tools=None,
+        hosted_web_search=None,
+        max_output_tokens=None,
+        temperature=None,
+        reasoning_effort=None,
+        response_schema={"name": "V", "schema": {"type": "object"}},
+    )
+    assert request["text"]["format"] == {
+        "type": "json_schema",
+        "name": "V",
+        "schema": {"type": "object"},
+        "strict": True,
+    }
 
 
 async def test_judge_prompts_for_json_and_retries_without_structured_outputs():

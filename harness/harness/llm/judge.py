@@ -90,11 +90,11 @@ class Judge:
         json_schema = schema.model_json_schema()
         if self._client.supports_response_schema:
             instruction = prompt
-            response_schema = {"name": schema.__name__, "schema": json_schema}
+            response_schema = {"name": schema.__name__, "schema": strict_schema(json_schema)}
         else:
             instruction = (
-                f"{prompt}\n\nRespond with only a JSON object matching this JSON schema:\n"
-                f"{json.dumps(json_schema)}"
+                f"{prompt}\n\nRespond with only a JSON object matching this JSON schema; it "
+                f"replaces any other reply format requested above:\n{json.dumps(json_schema)}"
             )
             response_schema = None
         usage = Usage()
@@ -113,6 +113,28 @@ class Judge:
                 continue
             return parsed, JudgeResponse(response.text, usage, cost)
         raise JudgeOutputError(f"judge returned no valid {schema.__name__}: {last_error}")
+
+
+def strict_schema(schema: dict) -> dict:
+    """Make a Pydantic JSON schema acceptable to strict structured outputs.
+
+    Strict mode requires every object to list all of its properties as required and
+    to forbid additional properties. Without strict mode the model may ignore the
+    schema and follow a reply format written in the prompt instead.
+    """
+
+    def walk(node: object) -> object:
+        if isinstance(node, dict):
+            node = {key: walk(value) for key, value in node.items()}
+            if node.get("type") == "object" and "properties" in node:
+                node["additionalProperties"] = False
+                node["required"] = list(node["properties"])
+            return node
+        if isinstance(node, list):
+            return [walk(item) for item in node]
+        return node
+
+    return walk(schema)  # type: ignore[return-value]
 
 
 def _extract_json(text: str) -> object:

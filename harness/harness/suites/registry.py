@@ -6,12 +6,10 @@ from harness.suites.base import Suite
 from harness.suites.browsecomp import BrowseComp
 from harness.suites.dsqa import DeepSearchQA
 from harness.suites.frames import Frames
-from harness.suites.hle import HLE
-from harness.suites.simpleqa import SimpleQA
 from harness.suites.widesearch import WideSearch
 
 SUITES: dict[str, type[Suite]] = {
-    suite.name: suite for suite in (BrowseComp, SimpleQA, Frames, DeepSearchQA, WideSearch, HLE)
+    suite.name: suite for suite in (BrowseComp, Frames, DeepSearchQA, WideSearch)
 }
 
 

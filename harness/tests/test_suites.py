@@ -19,9 +19,7 @@ from harness.suites import (
     dsqa,
     frames,
     get_suite,
-    hle,
     list_suites,
-    simpleqa,
     widesearch,
 )
 from harness.suites.data import SourceError, csv_rows, fetch_verified, require_count
@@ -56,7 +54,7 @@ class FakeJudge:
 
 
 def test_registry_lists_every_suite_with_a_revision() -> None:
-    assert list_suites() == ["browsecomp", "dsqa", "frames", "hle", "simpleqa", "widesearch"]
+    assert list_suites() == ["browsecomp", "dsqa", "frames", "widesearch"]
     for name in list_suites():
         suite = get_suite(name)
         assert suite.name == name
@@ -141,7 +139,7 @@ async def test_browsecomp_grade_uses_judge_verdict() -> None:
 
 async def test_empty_response_is_scored_without_judge() -> None:
     task = Task(id="t", problem="q", answer="a", metadata={"answer_type": "Set Answer"})
-    for name in ("browsecomp", "simpleqa", "frames", "hle", "dsqa"):
+    for name in ("browsecomp", "frames", "dsqa"):
         grade = await get_suite(name).grade(task, "  \n", FakeJudge())
         assert grade.scores[get_suite(name).primary_metric] == 0.0
         assert grade.details["empty_response"] is True
@@ -149,37 +147,16 @@ async def test_empty_response_is_scored_without_judge() -> None:
 
 
 # ---------------------------------------------------------------------------
-# SimpleQA / FRAMES / HLE (expected-answer judge)
+# FRAMES (expected-answer judge)
 # ---------------------------------------------------------------------------
-
-
-def test_simpleqa_aggregate_matches_simple_evals() -> None:
-    grades = [
-        Grade(scores={"correct": 1.0, "incorrect": 0.0, "not_attempted": 0.0}),
-        Grade(scores={"correct": 1.0, "incorrect": 0.0, "not_attempted": 0.0}),
-        Grade(scores={"correct": 0.0, "incorrect": 1.0, "not_attempted": 0.0}),
-        Grade(scores={"correct": 0.0, "incorrect": 0.0, "not_attempted": 1.0}),
-    ]
-    summary = get_suite("simpleqa").aggregate(grades)
-    assert summary["correct"] == 0.5
-    assert summary["not_attempted"] == 0.25
-    assert summary["accuracy_given_attempted"] == pytest.approx(2 / 3)
-    assert summary["f1"] == pytest.approx(2 * (2 / 3) * 0.5 / (2 / 3 + 0.5))
-    assert simpleqa.simpleqa_aggregate(0.0, 0.0, 1.0)["f1"] == 0.0
-
-
-def test_simpleqa_rows_keep_bare_question_prompt() -> None:
-    [task] = simpleqa.tasks_from_rows([{"metadata": "{}", "problem": "Who?", "answer": "Her"}])
-    assert task.id == "simpleqa-0000"
-    assert get_suite("simpleqa").prompt(task) == "Who?"
 
 
 @pytest.mark.parametrize(
     ("suite_name", "label", "expected"),
     [
-        ("simpleqa", "NOT_ATTEMPTED", {"correct": 0.0, "incorrect": 0.0, "not_attempted": 1.0}),
         ("frames", "CORRECT", {"score": 1.0, "correct": 1.0}),
-        ("hle", "INCORRECT", {"score": 0.0, "incorrect": 1.0}),
+        ("frames", "INCORRECT", {"score": 0.0, "incorrect": 1.0}),
+        ("frames", "NOT_ATTEMPTED", {"score": 0.0, "not_attempted": 1.0}),
     ],
 )
 async def test_expected_answer_suites_score_labels(
@@ -195,14 +172,11 @@ async def test_expected_answer_suites_score_labels(
     assert system and "Gold target: Gold" in user and "Predicted answer: An answer" in user
 
 
-async def test_hle_uses_agentic_prompt_and_frames_uses_simpleqa_prompt() -> None:
+async def test_frames_uses_simpleqa_prompt() -> None:
     task = Task(id="t", problem="Q", answer="A")
-    reply = {"reasoning": "r", "correctness": "CORRECT"}
-    hle_judge, frames_judge = FakeJudge(reply), FakeJudge(reply)
-    await get_suite("hle").grade(task, "x", hle_judge)
-    await get_suite("frames").grade(task, "x", frames_judge)
-    assert hle_judge.prompts[0][0].startswith("You are grading the output of an agentic")
-    assert frames_judge.prompts[0][0].startswith("Your job is to look at a question")
+    judge = FakeJudge({"reasoning": "r", "correctness": "CORRECT"})
+    await get_suite("frames").grade(task, "x", judge)
+    assert judge.prompts[0][0].startswith("Your job is to look at a question")
 
 
 async def test_expected_answer_rejects_unknown_label() -> None:
@@ -213,7 +187,7 @@ async def test_expected_answer_rejects_unknown_label() -> None:
         )
 
 
-def test_frames_and_hle_rows() -> None:
+def test_frames_rows() -> None:
     [task] = frames.tasks_from_rows(
         [
             {
@@ -226,38 +200,6 @@ def test_frames_and_hle_rows() -> None:
         ]
     )
     assert (task.id, task.problem, task.answer) == ("frames-007", "P", "A")
-
-    rows = [
-        {
-            "id": "a",
-            "question": "text",
-            "image": "",
-            "answer": "1",
-            "answer_type": "exactMatch",
-            "category": "Math",
-            "raw_subject": "Algebra",
-        },
-        {
-            "id": "b",
-            "question": "pic",
-            "image": "data:image/png;base64,xx",
-            "answer": "2",
-            "answer_type": "exactMatch",
-            "category": "Math",
-            "raw_subject": "Algebra",
-        },
-    ]
-    [text_only] = hle.tasks_from_rows(rows)
-    assert text_only.id == "a"
-    prompt = get_suite("hle").prompt(text_only)
-    assert prompt.startswith("text\n\nYour response should be in the following format:")
-    assert "Answer: {your chosen answer}" in prompt
-
-
-def test_hle_without_token_fails_clearly(monkeypatch) -> None:
-    monkeypatch.setattr(hle, "get_token", lambda: None)
-    with pytest.raises(SourceError, match="HF_TOKEN"):
-        get_suite("hle").load()
 
 
 # ---------------------------------------------------------------------------

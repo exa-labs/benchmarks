@@ -3,7 +3,7 @@
 Open benchmarks and an open evaluation harness for web search APIs.
 
 - **[Evaluation harness](#evaluation-harness)** (`bench`) runs any search API on public
-  benchmarks (BrowseComp, SimpleQA, FRAMES, DeepSearchQA, WideSearch, HLE) inside the same
+  benchmarks (BrowseComp, FRAMES, DeepSearchQA, WideSearch) inside the same
   research agent, so the only thing that differs between systems is the search API.
 - **[Exa benchmarks](#benchmarks)** are task-specific datasets we built (code docs, people,
   companies, publications), each with its own runner.
@@ -38,11 +38,9 @@ with another OpenAI or Anthropic model (native-search systems stay on their own 
 | Suite | Tasks | Primary metric | Source |
 |-------|------:|----------------|--------|
 | `browsecomp` | 1,266 | accuracy (`score`) | [BrowseComp](https://openai.com/index/browsecomp/) |
-| `simpleqa` | 4,326 | `correct` (plus official F1) | [SimpleQA](https://openai.com/index/introducing-simpleqa/) |
 | `frames` | 824 | accuracy (`score`) | [google/frames-benchmark](https://huggingface.co/datasets/google/frames-benchmark) |
 | `dsqa` | 900 | `f1` | [google/deepsearchqa](https://huggingface.co/datasets/google/deepsearchqa) |
 | `widesearch` | 200 | `f1_by_row` | [ByteDance-Seed/WideSearch](https://huggingface.co/datasets/ByteDance-Seed/WideSearch) |
-| `hle` | text-only subset | accuracy (`score`) | [cais/hle](https://huggingface.co/datasets/cais/hle) (gated) |
 
 Data is downloaded at pinned revisions on first use and verified; nothing is redistributed
 here. Answers are graded by an LLM judge (`openai/gpt-5.6-luna` by default, `--judge-model`
@@ -66,8 +64,8 @@ uv run bench run --system scout-exa-auto --model anthropic/claude-sonnet-5 --sui
 ```
 
 These commands make paid API calls. `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL` point the model
-clients at any compatible gateway. HLE needs `HF_TOKEN` after accepting its terms on Hugging
-Face. `uv run bench download` fetches and verifies every suite up front.
+clients at any compatible gateway. `uv run bench download` fetches and verifies every suite
+up front.
 
 ### How Scout works
 
@@ -116,13 +114,11 @@ system is comparable with the rest without further changes.
 Benchmarks are downloaded from their upstream homes at pinned revisions and remain under their
 own terms:
 
-- BrowseComp and SimpleQA are published by OpenAI through
-  [simple-evals](https://github.com/openai/simple-evals) (MIT). BrowseComp is encrypted
+- BrowseComp is published by OpenAI through
+  [simple-evals](https://github.com/openai/simple-evals) (MIT). It is encrypted
   upstream to keep it out of training data; do not republish decrypted questions or answers.
 - FRAMES and DeepSearchQA are Apache-2.0.
 - WideSearch data is CC0-1.0; the evaluator it adapts is MIT.
-- Humanity's Last Exam is MIT and gated: accept its terms on Hugging Face and set `HF_TOKEN`.
-  Its maintainers ask that the questions not be used for training.
 
 ## Benchmarks
 
