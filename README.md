@@ -9,8 +9,10 @@ prompts, research loop and budgets fixed across the search API presets. The agen
 searches repeatedly, follows up on results and synthesizes an answer from the
 evidence it retrieves. Each adapter preserves its provider's search request format.
 
-The runner also supports single-step RAG, direct retrieval, URL extraction + RAG
-and OpenAI/Anthropic hosted web search. All modes share grading, resumable runs,
+The runner also supports single-step RAG, direct retrieval and URL extraction + RAG.
+OpenAI and Anthropic native-search presets use hosted web search within Scout,
+evaluating each provider's model and search together. Exa Agent and Parallel Task
+endpoints are outside this catalog. All modes share grading, resumable runs,
 cost reporting and 95% bootstrap confidence intervals.
 
 ## Benchmarks
