@@ -17,7 +17,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from harness.llm import LLM_DEFAULT
+from harness.llm import JUDGE_DEFAULT
 from harness.llm.clients import ModelClient, create_client
 from harness.llm.types import Usage
 
@@ -64,7 +64,7 @@ class Judge:
 
     def __init__(
         self,
-        model: str = LLM_DEFAULT,
+        model: str = JUDGE_DEFAULT,
         *,
         reasoning_effort: str | None = None,
         max_output_tokens: int = 16_000,

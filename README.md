@@ -157,12 +157,13 @@ Exa, Parallel and Claude. Set the corresponding `PERPLEXITY_API_KEY`,
 
 | Role | Default model |
 |------|---------------|
-| Scout and judge | `openai/gpt-6-luna` |
+| Scout | `openai/gpt-6-astra` |
+| Judge | `openai/gpt-6-luna` |
 | RAG / Extract + RAG answering | `openai/gpt-5.6-luna` |
 | `openai-native-search` | `openai/gpt-6-astra` |
 | `anthropic-native-search` and Claude extraction | `claude-opus-5-5` |
 
-Scout and the judge share `LLM_DEFAULT` in [`harness/llm/__init__.py`](harness/llm/__init__.py).
+`SCOUT_DEFAULT` and `JUDGE_DEFAULT` live in [`harness/llm/__init__.py`](harness/llm/__init__.py).
 `--model` overrides the answering model; `--judge-model` overrides the judge.
 Use provider-prefixed model names, such as `anthropic/claude-opus-5-5`.
 Hosted search stays on its own provider. Claude's extraction model is configured

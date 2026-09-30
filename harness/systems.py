@@ -16,7 +16,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from harness.llm import LLM_DEFAULT
+from harness.llm import SCOUT_DEFAULT
 from harness.llm.clients import provider_of
 from harness.rag import SingleStepRAG, enrich_results
 from harness.scout import Scout, ScoutConfig
@@ -110,7 +110,7 @@ class Catalog:
         if kind not in SYSTEM_KINDS:
             raise ValueError(f"system {name!r} has kind {kind!r}; expected one of {SYSTEM_KINDS}")
         merged = {**copy.deepcopy(self.defaults.get(kind, {})), **entry}
-        base_model = merged.pop("model", LLM_DEFAULT if kind == "scout" else None)
+        base_model = merged.pop("model", SCOUT_DEFAULT if kind == "scout" else None)
         resolved_model = model or base_model
         if kind != "search":
             if not resolved_model:

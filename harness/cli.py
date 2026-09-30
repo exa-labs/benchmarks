@@ -24,7 +24,7 @@ from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, T
 from rich.table import Table
 
 from benchmarks import get_suite, list_suites
-from harness.llm import LLM_DEFAULT
+from harness.llm import JUDGE_DEFAULT
 from harness.llm.clients import provider_of
 from harness.llm.judge import Judge
 from harness.runner import (
@@ -259,7 +259,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--limit", type=positive_int, help="evaluate only the first N tasks")
     run.add_argument("--concurrency", type=positive_int, default=5)
     run.add_argument("--run-suffix", help="start an independent repeat of the same setup")
-    run.add_argument("--judge-model", default=LLM_DEFAULT)
+    run.add_argument("--judge-model", default=JUDGE_DEFAULT)
     run.add_argument("--runs-dir", default=str(DEFAULT_RUNS_ROOT))
     run.add_argument("--num-results", type=positive_int)
     run.add_argument("--split", choices=("static", "dynamic"))
