@@ -15,8 +15,7 @@ identity rather than content format. Grading is fully deterministic (no LLM).
 import re
 
 from harness.searchers import SearchResult
-
-from .base import GradeResult
+from harness.suite import Grade
 
 DOI_RE = re.compile(r"10\.\d{4,9}/[^\s,;\"'>\]]+", re.IGNORECASE)
 TITLE_MATCH_THRESHOLD = 0.70
@@ -89,9 +88,9 @@ class PaperRetrievalGrader:
 
         return False, None
 
-    def grade(self, result: SearchResult, gold_paper: dict) -> GradeResult:
+    def grade(self, result: SearchResult, gold_paper: dict) -> Grade:
         matched, method = self.match(result, gold_paper)
-        return GradeResult(
+        return Grade(
             scores={"is_match": 1.0 if matched else 0.0},
             details={"match_method": method},
         )

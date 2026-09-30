@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field
 
 from harness.searchers import SearchResult
+from harness.suite import Grade
 
-from .base import BaseLLMGrader, GradeResult
+from .base import BaseLLMGrader
 
 PEOPLE_ROLE_GRADING_SYSTEM = """You are evaluating if a person profile page satisfies a job role search query.
 This is BINARY - score 1 if the profile matches, score 0 if it doesn't.
@@ -47,7 +48,7 @@ class PeopleGradeResult(BaseModel):
 
 
 class PeopleGrader(BaseLLMGrader):
-    async def grade(self, query: str, result: SearchResult) -> GradeResult:
+    async def grade(self, query: str, result: SearchResult) -> Grade:
         """Judge a profile against the role and location constraints."""
         parsed = await self.parse(
             PEOPLE_ROLE_GRADING_SYSTEM,
@@ -59,7 +60,7 @@ class PeopleGrader(BaseLLMGrader):
             ),
             PeopleGradeResult,
         )
-        return GradeResult(
+        return Grade(
             scores={"is_match": float(parsed.score >= 0.5)},
             details={"explanation": parsed.explanation},
         )

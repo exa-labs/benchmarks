@@ -31,7 +31,6 @@ from pathlib import Path
 from statistics import mean
 from typing import Any, Protocol
 
-from benchmarks.base import Grade, Suite, Task
 from harness.llm.judge import Judge, track_judge_usage
 from harness.statistics import (
     BOOTSTRAP_RESAMPLES,
@@ -39,6 +38,7 @@ from harness.statistics import (
     CONFIDENCE_LEVEL,
     bootstrap_mean,
 )
+from harness.suite import Grade, Suite, Task
 from harness.systems import System, SystemSpec
 
 DEFAULT_RUNS_ROOT = Path("results/runs")

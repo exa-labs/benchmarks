@@ -12,7 +12,8 @@ Open benchmarks and an open evaluation harness for web search APIs.
 
 ```text
 harness/       CLI, runner, Scout, RAG, model clients, search adapters
-benchmarks/    suite definitions, graders, and bundled benchmark datasets
+benchmarks/    suite definitions, prompts, and graders
+data/          bundled Exa datasets and loaders for every dataset
 tests/         offline contract and regression tests
 results/       exported summaries; raw run artifacts in gitignored results/runs/
 systems.toml   provider presets and execution defaults
@@ -20,11 +21,28 @@ pyproject.toml one Python project and its CLI entry points
 uv.lock        pinned dependencies
 ```
 
-`harness/` executes systems; `benchmarks/` defines tasks and how they are scored.
-The four public suites download pinned upstream data; repository datasets live
-under `benchmarks/people/`, `benchmarks/company/`, `benchmarks/publication/`, and
-`benchmarks/webcode/data/`. Use `--output results/<name>.json` to save shareable summaries with confidence intervals.
-Detailed run outputs live in gitignored `results/runs/`.
+`data/` loads tasks, `benchmarks/` defines prompts and scoring, and `harness/`
+executes systems. Shared task, grade and suite interfaces live in
+[`harness/suite.py`](harness/suite.py). Dataset loading lives in
+[`data/loaders.py`](data/loaders.py); [`data/sources.py`](data/sources.py) downloads,
+verifies and caches the four public datasets at pinned upstream revisions.
+
+```text
+data/
+├── loaders.py       public benchmark loaders and bundled JSONL readers
+├── sources.py       verified downloads and cache helpers
+├── people.jsonl
+├── company.jsonl
+├── publication.jsonl
+└── webcode/
+    ├── highlights.jsonl
+    ├── rag.jsonl
+    ├── contents.jsonl   dataset only
+    └── e2e.jsonl        dataset only
+```
+
+Use `--output results/<name>.json` to save shareable summaries with confidence
+intervals. Detailed run outputs live in gitignored `results/runs/`.
 
 ```bash
 uv sync --locked
@@ -90,7 +108,7 @@ Publication grading is deterministic and needs no model key. Empty retrievals
 receive zero recall and precision. WebCode E2E remains a **dataset-only export**
 of 33 tasks, outside the runnable suite catalog; it has no coding-agent executor
 or bundled setup files. WebCode Contents retains its 250 URL/title/tag records in
-[`benchmarks/webcode/data/contents.jsonl`](benchmarks/webcode/data/contents.jsonl)
+[`data/webcode/contents.jsonl`](data/webcode/contents.jsonl)
 as a dataset-only export. Its runner is removed because the required licensed
 `golden_markdown.jsonl` reference data is unavailable.
 
@@ -222,12 +240,12 @@ own terms:
 
 ## Benchmarks
 
-| Benchmark | Queries | Tracks | Description |
-|-----------|---------|--------|-------------|
-| [WebCode](benchmarks/webcode/) | 557 runnable + 283 dataset only | Highlights, RAG; Contents and E2E dataset only | Code documentation retrieval and grounded QA |
-| [People Search](benchmarks/people/) | 1,400 | Retrieval | Find people profiles by role, location, seniority |
-| [Company Search](benchmarks/company/) | ~800 | Retrieval + RAG | Find companies by name, industry, geography, funding |
-| [Publication Retrieval](benchmarks/publication/) | 1,866 | Publication, ToT | Find the exact publication by grounded question or tip-of-the-tongue recollection |
+| Dataset | Queries | Tracks | Exa blog |
+|---------|---------|--------|----------|
+| [WebCode](data/webcode/) | 557 runnable + 283 dataset only | Highlights, RAG; Contents and E2E dataset only | [Search Evals for Coding Agents](https://exa.ai/blog/webcode) |
+| [People Search](data/people.jsonl) | 1,400 | Retrieval | [People Search Benchmarks](https://exa.ai/blog/people-search-benchmark) |
+| [Company Search](data/company.jsonl) | 839 | Retrieval + RAG | [Company Search Benchmarks](https://exa.ai/blog/company-search-benchmarks) |
+| [Publication Retrieval](data/publication.jsonl) | 1,866 | Publication, ToT | [SOTA Search Over Academic Publications](https://exa.ai/blog/publications-search) |
 
 People queries test roles, locations and seniority. Company retrieval has 345
 static and 260 dynamic queries; company RAG has 171 static and 63 dynamic queries.
@@ -271,7 +289,7 @@ or referenced setup files.
 | Perplexity | 64.6 | 754 | 0.220 |
 | Tavily | 61.1 | 464 | 0.159 |
 
-See the [WebCode datasets](benchmarks/webcode/data/) and [blog post](https://exa.ai/blog/web-code).
+See the [WebCode datasets](data/webcode/) and [blog post](https://exa.ai/blog/webcode).
 
 ## People Search Results
 
@@ -330,10 +348,12 @@ uv run cbench --track retrieval --split static
 uv run cbench --track rag
 uv run pubbench --limit 50                 # both publication tracks; no judge key needed
 uv run pubbench --track tot --searchers exa brave parallel --output results/publication.json
-uv run python -m benchmarks.webcode.highlights --searchers exa tavily parallel --limit 20
-uv run python -m benchmarks.webcode.rag --searchers exa brave perplexity --limit 20
-uv run python -m benchmarks.webcode.e2e --info  # inspect dataset only
+uv run bench run --suite webcode-highlights --system extract-rag-exa-extract --limit 20
+uv run bench run --suite webcode-rag --system rag-exa-webcode --limit 20
 ```
+
+WebCode uses the common `bench` CLI. Read the dataset-only exports directly with
+`data.loaders.load_rows("webcode-contents")` or `data.loaders.load_rows("webcode-e2e")`.
 
 Legacy provider aliases select task-specific presets in `systems.toml` (for example,
 `pbench --searchers exa` selects `search-exa-people`). They accept `--dry-run`,

@@ -35,23 +35,17 @@ from __future__ import annotations
 import json
 import re
 from io import StringIO
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 import dateparser
 import pandas as pd
 
-from benchmarks.base import Grade, Suite, Task
-from benchmarks.data import SourceError, hf_snapshot, require_count
-from benchmarks.grading import JudgeSpend, complete_parsed, is_blank
+from benchmarks.graders.base import JudgeSpend, complete_parsed, is_blank
+from data import loaders
+from data.loaders import norm_column
 from harness.llm.judge import Judge
-
-REPO_ID = "ByteDance-Seed/WideSearch"
-REVISION = "6531a7e5b497d44c8912407e0cb3dc95bd98cc09"
-QUERIES_FILE = "widesearch.jsonl"
-GOLD_DIR = "widesearch_gold"
-ROW_COUNT = 200
+from harness.suite import Grade, Suite, Task
 
 SCORE_KEYS = (
     "success_rate",
@@ -120,11 +114,6 @@ DEFAULT_JUDGE_CRITERION = "Score 1 if the response matches the answer, 0 otherwi
 # ---------------------------------------------------------------------------
 # Table extraction and column handling
 # ---------------------------------------------------------------------------
-
-
-def norm_column(column: Any) -> str:
-    """Normalize a column name: lowercase with all spaces removed."""
-    return str(column).strip().lower().replace(" ", "")
 
 
 def extract_table(response: str) -> pd.DataFrame | None:
@@ -367,19 +356,6 @@ def zero_scores() -> dict[str, float]:
     return dict.fromkeys(SCORE_KEYS, 0.0)
 
 
-def gold_answer(gold_csv: str, evaluation: dict[str, Any]) -> dict[str, Any]:
-    """The task answer: gold CSV text plus the normalized evaluation spec."""
-    return {
-        "gold_csv": gold_csv,
-        "required_columns": [norm_column(c) for c in evaluation["required"]],
-        "unique_columns": [norm_column(c) for c in evaluation.get("unique_columns", [])],
-        "eval_pipeline": {
-            norm_column(column): spec
-            for column, spec in evaluation.get("eval_pipeline", {}).items()
-        },
-    }
-
-
 async def _align(
     judge: Judge, response_values: list[Any], reference: list[Any], spend: JudgeSpend, what: str
 ) -> dict:
@@ -524,18 +500,8 @@ async def grade_table(
 
 
 # ---------------------------------------------------------------------------
-# Loading and the suite
+# Suite
 # ---------------------------------------------------------------------------
-
-
-def load_gold_csv(path: Path, required: list[str], instance_id: str) -> str:
-    """Read one gold CSV, keep its required columns, and return it as CSV text."""
-    frame = pd.read_csv(path)
-    frame.columns = [norm_column(column) for column in frame.columns]
-    missing = [column for column in required if column not in frame.columns]
-    if missing:
-        raise SourceError(f"widesearch {instance_id}: gold CSV lacks required columns {missing}")
-    return frame[required].to_csv(index=False)
 
 
 class WideSearch(Suite):
@@ -544,31 +510,10 @@ class WideSearch(Suite):
     name = "widesearch"
     description = "WideSearch: 200 table-building tasks (English and Chinese)"
     primary_metric = "f1_by_row"
-    revision = f"{REVISION}+grader-v1"
+    revision = f"{loaders.WIDESEARCH_REVISION}+grader-v1"
 
     def load(self) -> list[Task]:
-        """Fetch the pinned snapshot (queries and gold CSVs) through the Hugging Face cache."""
-        root = hf_snapshot(REPO_ID, REVISION, [QUERIES_FILE, f"{GOLD_DIR}/*.csv"])
-        with (root / QUERIES_FILE).open(encoding="utf-8") as handle:
-            items = [json.loads(line) for line in handle if line.strip()]
-        require_count(self.name, len(items), ROW_COUNT)
-        tasks = []
-        for item in items:
-            instance_id = item["instance_id"]
-            evaluation = item["evaluation"]
-            if isinstance(evaluation, str):
-                evaluation = json.loads(evaluation)
-            required = [norm_column(c) for c in evaluation["required"]]
-            gold_path = root / GOLD_DIR / f"{instance_id}.csv"
-            tasks.append(
-                Task(
-                    id=instance_id,
-                    problem=item["query"],
-                    answer=gold_answer(load_gold_csv(gold_path, required, instance_id), evaluation),
-                    metadata={"language": item["language"]},
-                )
-            )
-        return tasks
+        return loaders.load_widesearch()
 
     async def grade(self, task: Task, response: str, judge: Judge) -> Grade:
         """Score the response table against the task's gold table."""

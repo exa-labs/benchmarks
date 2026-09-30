@@ -4,7 +4,9 @@ from typing import Literal
 import tiktoken
 from pydantic import BaseModel, Field, model_validator
 
-from .base import BaseLLMGrader, GradeResult, gather_judgments
+from harness.suite import Grade
+
+from .base import BaseLLMGrader, gather_judgments
 
 RAG_GRADING_SYSTEM = """You are evaluating if an extracted answer matches the expected answer for a company fact query.
 This is BINARY - score 1 if the answer is correct, score 0 if it's wrong.
@@ -41,16 +43,16 @@ class RAGGradeResult(BaseModel):
 class RAGGrader(BaseLLMGrader):
     async def grade(
         self, query: str, expected_answer: str, actual_answer: str, bucket: str = ""
-    ) -> GradeResult:
+    ) -> Grade:
         """Grade company facts with the benchmark's numeric tolerance and text rules."""
         if not actual_answer or actual_answer.lower() in ("unknown", "not found", "n/a"):
-            return GradeResult(scores={"is_correct": 0.0})
+            return Grade(scores={"is_correct": 0.0})
         parsed = await self.parse(
             RAG_GRADING_SYSTEM,
             RAG_GRADING_USER.format(query=query, expected=expected_answer, actual=actual_answer),
             RAGGradeResult,
         )
-        return GradeResult(
+        return Grade(
             scores={"is_correct": float(parsed.score >= 0.5)},
             details={"explanation": parsed.explanation},
         )
@@ -208,11 +210,11 @@ class GroundedRAGGrader(BaseLLMGrader):
         expected_answer: str,
         predicted_answer: str,
         citations: list[Citation],
-    ) -> GradeResult:
+    ) -> Grade:
         if not predicted_answer:
-            return GradeResult(scores={"score": 0.0, "grounded": 0.0})
+            return Grade(scores={"score": 0.0, "grounded": 0.0})
         if not expected_answer:
-            return GradeResult(scores={"score": 0.0, "grounded": 0.0})
+            return Grade(scores={"score": 0.0, "grounded": 0.0})
 
         corr_result, grnd_result = await gather_judgments(
             self._call_correctness(question, expected_answer, predicted_answer),
@@ -237,7 +239,7 @@ class GroundedRAGGrader(BaseLLMGrader):
         )
         total_citation_tokens = float(sum(citation_token_counts))
 
-        return GradeResult(
+        return Grade(
             scores={
                 "score": score,
                 "grounded": grounded,

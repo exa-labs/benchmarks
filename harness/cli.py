@@ -23,7 +23,7 @@ from rich.console import Console
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from benchmarks.registry import get_suite, list_suites
+from benchmarks import get_suite, list_suites
 from harness.llm.clients import provider_of
 from harness.llm.judge import DEFAULT_JUDGE_MODEL, Judge
 from harness.runner import (

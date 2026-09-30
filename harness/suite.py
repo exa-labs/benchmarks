@@ -32,7 +32,7 @@ class Task:
 
 @dataclass
 class Grade:
-    """A graded answer. ``scores`` always contains the suite's primary metric."""
+    """Scores, reasoning, and judge cost for an answer or an individual search result."""
 
     scores: dict[str, float]
     details: dict[str, Any] = field(default_factory=dict)

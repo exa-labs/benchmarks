@@ -15,9 +15,8 @@ import httpx
 import pytest
 from pydantic import BaseModel
 
-from benchmarks.base import Grade, Suite, Task
+from benchmarks import get_suite
 from benchmarks.graders.base import gather_judgments
-from benchmarks.registry import get_suite
 from harness import cli
 from harness import rag as rag_module
 from harness import systems as system_module
@@ -48,6 +47,7 @@ from harness.searchers import (
     SearchResponse,
     SearchResult,
 )
+from harness.suite import Grade, Suite, Task
 from harness.systems import Catalog, System
 from harness.tools import OBJECTIVE_SEARCH_TOOL, QUERY_SEARCH_TOOL, SearchTool
 

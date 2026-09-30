@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field
 
 from harness.searchers import SearchResult
+from harness.suite import Grade
 
-from .base import BaseLLMGrader, GradeResult
+from .base import BaseLLMGrader
 from .utils import url_matches
 
 RETRIEVAL_GRADING_SYSTEM = """You are evaluating if a search result matches a company search query.
@@ -49,12 +50,12 @@ class RetrievalGrader(BaseLLMGrader):
         result: SearchResult,
         gold_homepage: str | None = None,
         constraints: dict | None = None,
-    ) -> GradeResult:
+    ) -> Grade:
         """Match a known homepage deterministically, or judge company constraints."""
         if gold_homepage:
-            return GradeResult(scores={"is_match": float(url_matches(result.url, gold_homepage))})
+            return Grade(scores={"is_match": float(url_matches(result.url, gold_homepage))})
         if not constraints:
-            return GradeResult(scores={"is_match": 0.0})
+            return Grade(scores={"is_match": 0.0})
         parsed = await self.parse(
             RETRIEVAL_GRADING_SYSTEM,
             RETRIEVAL_GRADING_USER.format(
@@ -66,7 +67,7 @@ class RetrievalGrader(BaseLLMGrader):
             ),
             RetrievalGradeResult,
         )
-        return GradeResult(
+        return Grade(
             scores={"is_match": float(parsed.score >= 0.5)},
             details={"explanation": parsed.explanation},
         )

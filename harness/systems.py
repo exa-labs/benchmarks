@@ -16,7 +16,6 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from benchmarks.base import Suite, Task
 from harness.llm.clients import provider_of
 from harness.rag import SingleStepRAG, enrich_results
 from harness.scout import Scout, ScoutConfig
@@ -29,6 +28,7 @@ from harness.searchers import (
     Searcher,
     TavilySearcher,
 )
+from harness.suite import Suite, Task
 from harness.tools import SearchTool
 
 DEFAULT_CATALOG = Path(__file__).with_name("systems.toml")

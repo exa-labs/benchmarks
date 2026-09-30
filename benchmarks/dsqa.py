@@ -27,15 +27,10 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from benchmarks.base import Grade, Suite, Task
-from benchmarks.data import csv_rows, hf_file, require_count
-from benchmarks.grading import JudgeSpend, complete_parsed, is_blank
+from benchmarks.graders.base import JudgeSpend, complete_parsed, is_blank
+from data import loaders
 from harness.llm.judge import Judge
-
-REPO_ID = "google/deepsearchqa"
-REVISION = "b2623f8653065c2672de6d941fc5434cd652376c"
-FILENAME = "DSQA-full.csv"
-ROW_COUNT = 900
+from harness.suite import Grade, Suite, Task
 
 # Source: DeepSearchQA paper, Appendix A (link in the module docstring)
 JUDGE_PROMPT = """Your task is to evaluate whether a given "AI Response" for a specific "User Prompt" arrived at the correct answer.
@@ -110,10 +105,10 @@ class JudgeRating:
 def parse_rating(text: str) -> JudgeRating:
     """Parse a judge reply, raising ``ValueError`` with context when it is malformed."""
     fenced = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
-    bare = None if fenced else re.search(r"\{.*\}", text, re.DOTALL)
-    if fenced is None and bare is None:
+    match = fenced or re.search(r"\{.*\}", text, re.DOTALL)
+    if match is None:
         raise ValueError(f"no JSON in judge reply: {text[:200]!r}")
-    raw = fenced.group(1) if fenced else bare.group(0)  # type: ignore[union-attr]
+    raw = match.group(1 if fenced else 0)
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError as error:
@@ -184,35 +179,16 @@ def empty_scores() -> dict[str, float]:
     }
 
 
-def tasks_from_rows(rows: list[dict[str, str]]) -> list[Task]:
-    """Build tasks; ids are the row index at the pinned revision."""
-    return [
-        Task(
-            id=f"dsqa-{index:03d}",
-            problem=row["problem"],
-            answer=row["answer"],
-            metadata={
-                "answer_type": row["answer_type"],
-                "problem_category": row["problem_category"],
-            },
-        )
-        for index, row in enumerate(rows)
-    ]
-
-
 class DeepSearchQA(Suite):
     """Google DeepSearchQA with the paper's set-answer judge."""
 
     name = "dsqa"
     description = "DeepSearchQA: 900 research prompts with single or exhaustive set answers"
     primary_metric = "f1"
-    revision = f"{REVISION}+grader-v1"
+    revision = f"{loaders.DSQA_REVISION}+grader-v1"
 
     def load(self) -> list[Task]:
-        """Fetch the pinned CSV through the Hugging Face cache."""
-        rows = csv_rows(hf_file(REPO_ID, FILENAME, REVISION).read_bytes())
-        require_count(self.name, len(rows), ROW_COUNT)
-        return tasks_from_rows(rows)
+        return loaders.load_dsqa()
 
     async def grade(self, task: Task, response: str, judge: Judge) -> Grade:
         """Rate which expected parts the response contains and score set overlap."""

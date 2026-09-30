@@ -16,20 +16,14 @@ Paper: https://openai.com/index/browsecomp/
 
 from __future__ import annotations
 
-import base64
-import hashlib
 from typing import Literal
 
 from pydantic import BaseModel
 
-from benchmarks.base import Grade, Suite, Task
-from benchmarks.data import csv_rows, fetch_verified, require_count
-from benchmarks.grading import JudgeSpend, is_blank
+from benchmarks.graders.base import JudgeSpend, is_blank
+from data import loaders
 from harness.llm.judge import Judge
-
-SOURCE_URL = "https://openaipublic.blob.core.windows.net/simple-evals/browse_comp_test_set.csv"
-SOURCE_SHA256 = "7b24471cd5b3eb2a46830a14802b5c029ea62f488ff75a0f88af7923d1454abf"
-ROW_COUNT = 1266
+from harness.suite import Grade, Suite, Task
 
 # Source: https://github.com/openai/simple-evals/blob/main/browsecomp_eval.py (MIT)
 QUERY_TEMPLATE = """
@@ -74,53 +68,16 @@ class ExtractedAnswer(BaseModel):
     confidence: int
 
 
-def derive_key(password: str, length: int) -> bytes:
-    """Repeat SHA-256(password) to ``length`` bytes, as simple-evals does."""
-    digest = hashlib.sha256(password.encode()).digest()
-    return digest * (length // len(digest)) + digest[: length % len(digest)]
-
-
-def decrypt(ciphertext_b64: str, password: str) -> str:
-    """Decrypt one base64 XOR-encrypted BrowseComp field."""
-    encrypted = base64.b64decode(ciphertext_b64)
-    key = derive_key(password, len(encrypted))
-    return bytes(a ^ b for a, b in zip(encrypted, key, strict=True)).decode()
-
-
-def encrypt(plaintext: str, password: str) -> str:
-    """Inverse of ``decrypt``; used to build synthetic rows in tests."""
-    raw = plaintext.encode()
-    key = derive_key(password, len(raw))
-    return base64.b64encode(bytes(a ^ b for a, b in zip(raw, key, strict=True))).decode()
-
-
-def tasks_from_rows(rows: list[dict[str, str]]) -> list[Task]:
-    """Decrypt source rows into tasks; ids are the row index at the pinned hash."""
-    return [
-        Task(
-            id=f"browsecomp-{index:04d}",
-            problem=decrypt(row["problem"], row["canary"]),
-            answer=decrypt(row["answer"], row["canary"]),
-            metadata={"problem_topic": row["problem_topic"]},
-        )
-        for index, row in enumerate(rows)
-    ]
-
-
 class BrowseComp(Suite):
     """OpenAI BrowseComp, graded by the HLE-style extract-and-compare judge."""
 
     name = "browsecomp"
     description = "BrowseComp: 1,266 hard-to-find short answers that require browsing"
     primary_metric = "score"
-    revision = f"sha256:{SOURCE_SHA256}+grader-v1"
+    revision = f"sha256:{loaders.BROWSECOMP_SHA256}+grader-v1"
 
     def load(self) -> list[Task]:
-        """Download (or reuse) the pinned CSV and decrypt every row in memory."""
-        data = fetch_verified(SOURCE_URL, SOURCE_SHA256, "browse_comp_test_set.csv")
-        rows = csv_rows(data)
-        require_count(self.name, len(rows), ROW_COUNT)
-        return tasks_from_rows(rows)
+        return loaders.load_browsecomp()
 
     def prompt(self, task: Task) -> str:
         """The question wrapped in the official Explanation / Exact Answer / Confidence format."""

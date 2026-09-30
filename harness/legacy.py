@@ -15,8 +15,6 @@ _DEFAULTS = {
     "people": ["exa", "brave", "parallel"],
     "company": ["exa"],
     "publication": ["exa"],
-    "webcode-rag": ["exa"],
-    "webcode-highlights": ["exa"],
 }
 
 
@@ -35,13 +33,7 @@ def system_name(family: str, track: str, provider: str) -> str:
         base["exa"] = "exa-company"
     elif family == "publication":
         base["exa"] = "exa-publication"
-    elif family == "webcode-rag":
-        base["exa"] = "exa-webcode"
-    elif family == "webcode-highlights":
-        base.update(exa="exa-extract", parallel="parallel-extract", claude="claude-extract")
-    kind = (
-        "extract-rag" if family == "webcode-highlights" else "rag" if track == "rag" else "search"
-    )
+    kind = "rag" if track == "rag" else "search"
     return f"{kind}-{base.get(provider, provider)}"
 
 
@@ -77,7 +69,7 @@ def legacy_main(family: str, argv: list[str] | None = None) -> None:
         tracks = [args.track] if args.track else ["paper", "tot"]
         suites = ["publication-tot" if track == "tot" else "publication" for track in tracks]
     else:
-        tracks = ["rag" if family.startswith("webcode") else "retrieval"]
+        tracks = ["retrieval"]
         suites = [family]
     systems = list(
         dict.fromkeys(
@@ -117,7 +109,3 @@ def company_main() -> None:
 
 def publication_main() -> None:
     legacy_main("publication")
-
-
-def webcode_main(track: str) -> None:
-    legacy_main(f"webcode-{track}")
