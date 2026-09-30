@@ -8,6 +8,30 @@ Open benchmarks and an open evaluation harness for web search APIs.
 - **[Exa benchmarks](#benchmarks)** are task-specific datasets we built (code docs, people,
   companies, publications), run through the same harness.
 
+## Repository layout
+
+```text
+harness/       CLI, runner, Scout, RAG, model clients, search adapters
+benchmarks/    suite definitions, graders, and bundled benchmark datasets
+tests/         offline contract and regression tests
+results/       exported summaries; raw run artifacts in gitignored results/runs/
+systems.toml   provider presets and execution defaults
+pyproject.toml one Python project and its CLI entry points
+uv.lock        pinned dependencies
+```
+
+`harness/` executes systems; `benchmarks/` defines tasks and how they are scored.
+The four public suites download pinned upstream data; repository datasets live
+under `benchmarks/people/`, `benchmarks/company/`, `benchmarks/publication/`, and
+`benchmarks/webcode/data/`. Use `--output results/<name>.json` to save shareable summaries with confidence intervals.
+Detailed run outputs live in gitignored `results/runs/`.
+
+```bash
+uv sync --locked
+uv run bench list
+uv run pytest
+```
+
 ## Evaluation harness
 
 Comparing search APIs is only fair when everything around the search call is held fixed.
@@ -73,7 +97,7 @@ reference data is unavailable.
 ```bash
 git clone https://github.com/exa-labs/benchmarks.git
 cd benchmarks
-uv sync --all-packages --all-groups --locked
+uv sync --locked
 
 export OPENAI_API_KEY=...        # Scout model and the judge
 export EXA_API_KEY=...           # plus a key for each search API you run:
@@ -120,32 +144,66 @@ tool definition. Results come back as a numbered list of title, URL and highligh
 
 ### Run artifacts, resuming and cost
 
-Each run writes `runs/{system}-{suite}[-{suffix}]-{hash}/`:
+Each run writes `results/runs/{system}-{suite}[-{suffix}]-{hash}/`:
 
 ```text
 config.json               resolved system, suite revision, judge model
 tasks/<task-id>/result.json   answer, citations, costs and the full trajectory
 tasks/<task-id>/grade.json    scores, grader reasoning, judge cost
 tasks/<task-id>/cost.json     cumulative judge spend, including failed grading attempts
-summary.json              metrics, failed-as-zero primary metric, cost per task, stop reasons
+summary.json              metrics, 95% bootstrap CIs, costs, failures, stop reasons
 ```
 
 The hash covers the system settings, suite revision and judge model. Re-running the same
 command resumes: graded tasks are skipped, answered-but-ungraded tasks are only re-graded, and
 failed tasks are retried. `--run-suffix rep2` starts an independent repeat.
 
-Cost per task is split into model tokens (priced from [`harness/harness/llm/pricing.py`](harness/harness/llm/pricing.py))
+Cost per task is split into model tokens (priced from [`harness/llm/pricing.py`](harness/llm/pricing.py))
 and search calls (the provider's reported cost when it returns one, otherwise its list price);
 judge cost is reported separately. A model with no listed price is reported as unknown, not
 zero. Answered tasks retain their costs even when grading fails; unsuccessful model
 or search calls with unknown spend mark accounting incomplete. Grade retries accumulate
 judge spend across resumed runs.
 
+### Results and confidence intervals
+
+Every run summary includes **95% percentile bootstrap confidence intervals** for
+all mean scores. [`harness/statistics.py`](harness/statistics.py) resamples whole
+tasks with replacement 10,000 times (seed 0) and takes the 2.5th and 97.5th
+percentiles of the resampled means. The JSON records the method, confidence level,
+resample count, seed, sample size and bounds under `confidence_intervals`.
+
+Ordinary metrics use graded tasks. The primary `*_failed_as_zero` metric includes
+all attempted tasks, with failures scored as zero; its interval uses that same
+denominator. Sparse score keys also count as zero, matching aggregation. Fewer
+than two tasks produces null bounds. Constant observed scores give a degenerate
+interval; this does not prove there is no uncertainty beyond the sample.
+
+These intervals describe task-sampling uncertainty assuming independent tasks.
+They do not measure variation across repeated model or judge executions, and are
+not confidence intervals for differences between systems.
+
+```bash
+# Export new runs, including CIs, to the versionable results/ directory:
+uv run bench run --suite publication --system search-exa-publication \
+  --output results/publication.json
+
+# Recompute CIs from saved task artifacts, with no paid calls:
+uv run bench summary results/runs/<run-directory> --output results/publication.json
+```
+
+`--output` always writes a JSON list of summaries. Raw answers, trajectories and
+grades stay in gitignored `results/runs/`; only deliberately exported summaries
+belong in version control. Existing runs under the former `runs/` location still
+work with `bench summary runs/<run-directory>` or `bench run --runs-dir runs`.
+The historical tables below have no task-level artifacts here, so CIs cannot be
+reconstructed from those aggregate numbers alone.
+
 ### Adding a search API
 
-Implement `Searcher.run` in [`shared/shared/searchers/`](shared/shared/searchers/) (return
+Implement `Searcher.run` in [`harness/searchers/`](harness/searchers/) (return
 results plus the request's cost), register the provider in `build_searcher`
-([`harness/harness/systems.py`](harness/harness/systems.py)), and add a `[searchers.*]` entry
+([`harness/systems.py`](harness/systems.py)), and add a `[searchers.*]` entry
 and a `scout-*` system to `systems.toml`. Scout systems inherit `[defaults.scout]`, so the new
 system is comparable with the rest without further changes.
 
@@ -164,10 +222,25 @@ own terms:
 
 | Benchmark | Queries | Tracks | Description |
 |-----------|---------|--------|-------------|
-| [WebCode](webcode-benchmark/) | 557 + 33 | Highlights, RAG; E2E dataset only | Code documentation retrieval and grounded QA |
-| [People Search](simple-people-benchmark/) | 1,400 | Retrieval | Find people profiles by role, location, seniority |
-| [Company Search](simple-company-benchmark/) | ~800 | Retrieval + RAG | Find companies by name, industry, geography, funding |
-| [Publication Retrieval](publication-benchmark/) | 1,866 | Publication, ToT | Find the exact publication by grounded question or tip-of-the-tongue recollection |
+| [WebCode](benchmarks/webcode/) | 557 + 33 | Highlights, RAG; E2E dataset only | Code documentation retrieval and grounded QA |
+| [People Search](benchmarks/people/) | 1,400 | Retrieval | Find people profiles by role, location, seniority |
+| [Company Search](benchmarks/company/) | ~800 | Retrieval + RAG | Find companies by name, industry, geography, funding |
+| [Publication Retrieval](benchmarks/publication/) | 1,866 | Publication, ToT | Find the exact publication by grounded question or tip-of-the-tongue recollection |
+
+People queries test roles, locations and seniority. Company retrieval has 345
+static and 260 dynamic queries; company RAG has 171 static and 63 dynamic queries.
+Company lookup matches homepage URLs, while constraint queries use an LLM judge.
+Dynamic numeric RAG facts allow 20% tolerance; text answers use semantic grading.
+
+Publication grading matches DOI first, then title token overlap (Jaccard ≥ 0.7).
+Each query has one gold publication, so recall@k is hit@k. The ToT track uses vague
+recollections; the publication track uses questions grounded in findings or methods.
+
+WebCode Highlights supplies a URL, question, answer and citation excerpt; RAG
+supplies a question, answer, source URL and excerpt. Both measure answer correctness
+and citation grounding. Some Highlights URLs are omitted for licensing reasons.
+The E2E export includes repository/release metadata and test patches, but no executor
+or referenced setup files.
 
 > The competitor rows below were measured with earlier versions of the provider adapters
 > (Perplexity through its Sonar answer API, Parallel through the v1beta Search API, Brave LLM
@@ -196,7 +269,7 @@ own terms:
 | Perplexity | 64.6 | 754 | 0.220 |
 | Tavily | 61.1 | 464 | 0.159 |
 
-See [webcode-benchmark/](webcode-benchmark/) for details and [blog post](https://exa.ai/blog/web-code).
+See the [WebCode datasets](benchmarks/webcode/data/) and [blog post](https://exa.ai/blog/web-code).
 
 ## People Search Results
 
@@ -246,7 +319,7 @@ Two tracks designed to separate retrieval from fact extraction.
 
 ## Running the Exa benchmarks
 
-From the repository root after the workspace install above:
+From the repository root after the install above:
 
 ```bash
 uv run pbench --searchers exa --limit 50
@@ -254,10 +327,10 @@ uv run cbench --limit 50                    # both company tracks
 uv run cbench --track retrieval --split static
 uv run cbench --track rag
 uv run pubbench --limit 50                 # both publication tracks; no judge key needed
-uv run pubbench --track tot --searchers exa brave parallel --output results.json
-uv run python -m evals.highlights --searchers exa tavily parallel --limit 20
-uv run python -m evals.rag --searchers exa brave perplexity --limit 20
-uv run python -m evals.e2e --info           # inspect dataset only
+uv run pubbench --track tot --searchers exa brave parallel --output results/publication.json
+uv run python -m benchmarks.webcode.highlights --searchers exa tavily parallel --limit 20
+uv run python -m benchmarks.webcode.rag --searchers exa brave perplexity --limit 20
+uv run python -m benchmarks.webcode.e2e --info  # inspect dataset only
 ```
 
 Legacy provider aliases select task-specific presets in `systems.toml` (for example,
@@ -272,7 +345,7 @@ for current comparisons.
 All benchmarks use the same `Searcher` interface:
 
 ```python
-from shared.searchers import Searcher, SearchResult
+from harness.searchers import Searcher, SearchResult
 
 class MySearcher(Searcher):
     name = "my-search"
@@ -289,7 +362,7 @@ class MySearcher(Searcher):
         return [SearchResult(url=url, text=content)]
 ```
 
-The `search` method is used by retrieval and RAG evals. The `extract` method is used by the highlights eval for URL-based extraction. The evaluation harness calls `run`, which returns the same results plus the request's cost and latency; the default `run` wraps `search` and reports the cost as unknown, so override it for a provider with a known price (see [`exa.py`](shared/shared/searchers/exa.py)).
+The `search` method is used by retrieval and RAG evals. The `extract` method is used by the highlights eval for URL-based extraction. The evaluation harness calls `run`, which returns the same results plus the request's cost and latency; the default `run` wraps `search` and reports the cost as unknown, so override it for a provider with a known price (see [`exa.py`](harness/searchers/exa.py)).
 
 ## Requirements
 

@@ -1,14 +1,44 @@
 [project]
 name = "benchmarks"
 version = "0.1.0"
-description = "Exa search benchmarks"
+description = "Open evaluation harness and datasets for web search APIs"
+readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Exa", email = "hello@exa.ai" }]
+dependencies = [
+    "anthropic>=0.69.0",
+    "datasets>=3.0.0",
+    "dateparser>=1.2.0",
+    "httpx>=0.27.0",
+    "huggingface-hub>=0.30.0",
+    "numpy>=2.4.6",
+    "openai>=2.0.0",
+    "pandas>=2.2.0",
+    "pydantic>=2.0.0",
+    "rich>=13.0.0",
+    "tenacity>=8.0.0",
+    "tiktoken>=0.7.0",
+]
+
+[project.scripts]
+bench = "harness.cli:main"
+pbench = "harness.legacy:people_main"
+cbench = "harness.legacy:company_main"
+pubbench = "harness.legacy:publication_main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["harness", "benchmarks"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"systems.toml" = "harness/systems.toml"
 
 [tool.uv]
 exclude-newer = "2026-09-27T00:00:00Z"
-
-[tool.uv.workspace]
-members = ["shared", "simple-people-benchmark", "simple-company-benchmark", "webcode-benchmark", "publication-benchmark", "harness"]
 
 [tool.ruff]
 line-length = 100
@@ -19,6 +49,8 @@ select = ["E", "F", "I", "W"]
 ignore = ["E501"]
 
 [dependency-groups]
-dev = [
-    "ruff>=0.15.7",
-]
+dev = ["ruff>=0.15.7", "pytest>=8.0", "pytest-asyncio>=0.24"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
