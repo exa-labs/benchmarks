@@ -11,8 +11,8 @@ evidence it retrieves. Each adapter preserves its provider's search request form
 
 The runner also supports single-step RAG, direct retrieval and URL extraction + RAG.
 OpenAI and Anthropic native-search presets use hosted web search within Scout,
-evaluating each provider's model and search together. Exa Agent and Parallel Task
-endpoints are outside this catalog. All modes share grading, resumable runs,
+evaluating each provider's model and search together. End-to-end agent products
+like Exa Agent are out of scope. All modes share grading, resumable runs,
 cost reporting and 95% bootstrap confidence intervals.
 
 ## Benchmarks
