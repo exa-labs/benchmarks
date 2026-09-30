@@ -4,9 +4,9 @@ Examples::
 
     uv run bench list
     uv run bench download --suite browsecomp
-    uv run bench run --system scout-exa-auto --suite browsecomp --limit 5
-    uv run bench run --system scout-brave --model anthropic/claude-sonnet-5 --suite dsqa
-    uv run bench summary runs/scout-exa-auto-browsecomp-1a2b3c4d5e
+    uv run bench run --system scout-exa-auto-highlights --suite browsecomp --limit 5
+    uv run bench run --system scout-brave-llm-context --model anthropic/claude-sonnet-5 --suite dsqa
+    uv run bench summary runs/scout-exa-auto-highlights-browsecomp-1a2b3c4d5e
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import asyncio
 import json
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from rich.console import Console
@@ -42,14 +43,18 @@ PROVIDER_KEYS = {
     "anthropic": ("ANTHROPIC_API_KEY",),
     "exa": ("EXA_API_KEY",),
     "brave": ("BRAVE_SEARCH_API_KEY", "BRAVE_API_KEY"),
-    "parallel": ("PARALLEL_API_KEY",),
+    "parallel": ("PARALLEL_API_KEY", "PARALLELS_API_KEY"),
     "perplexity": ("PERPLEXITY_API_KEY",),
+    "tavily": ("TAVILY_API_KEY",),
+    "claude": ("ANTHROPIC_API_KEY",),
 }
 
 
-def missing_credentials(spec: SystemSpec, judge_model: str) -> list[str]:
+def missing_credentials(spec: SystemSpec, judge_model: str | None) -> list[str]:
     """Name each provider whose API key is absent, before any paid call is made."""
-    providers = {provider_of(spec.model), provider_of(judge_model)}
+    providers = {provider_of(model) for model in (spec.model, judge_model) if model}
+    if spec.settings.get("enrich_exa_contents"):
+        providers.add("exa")
     if spec.searcher is not None:
         providers.add(spec.searcher["provider"])
     missing = []
@@ -67,20 +72,21 @@ def cmd_list(args: argparse.Namespace) -> int:
         table.add_column(column)
     for name in sorted(catalog.systems):
         spec = catalog.resolve(name)
-        backend = (
-            f"{spec.searcher['name']} ({spec.searcher['provider']})"
-            if spec.searcher
-            else f"{provider_of(spec.model)} hosted web search"
-        )
-        table.add_row(name, spec.kind, spec.model, backend)
+        if spec.searcher:
+            backend = f"{spec.searcher['name']} ({spec.searcher['provider']})"
+        else:
+            assert spec.model is not None
+            backend = f"{provider_of(spec.model)} hosted web search"
+        table.add_row(name, spec.kind, spec.model or "—", backend)
     console.print(table)
     suites = Table(title="Suites")
-    for column in ("suite", "primary metric", "description"):
+    for column in ("suite", "systems", "primary metric", "description"):
         suites.add_column(column)
     for name in list_suites():
         suite = get_suite(name)
-        suites.add_row(name, suite.primary_metric, suite.description)
+        suites.add_row(name, ", ".join(suite.system_kinds), suite.primary_metric, suite.description)
     console.print(suites)
+    console.print("WebCode E2E: dataset-only export (33 tasks); no execution harness.")
     return 0
 
 
@@ -97,37 +103,89 @@ def cmd_download(args: argparse.Namespace) -> int:
     return 1 if failures else 0
 
 
+def select_names(requested: list[str], available: list[str], label: str) -> list[str]:
+    """Expand an explicit all selector and reject typos before any calls."""
+    if requested == ["all"]:
+        return sorted(available)
+    unknown = set(requested) - set(available)
+    if unknown:
+        raise ValueError(f"unknown {label}: {', '.join(sorted(unknown))}")
+    return list(dict.fromkeys(requested))
+
+
 def cmd_run(args: argparse.Namespace) -> int:
+    """Validate the entire suite/system matrix before executing compatible pairs."""
     catalog = Catalog.load(args.catalog)
-    spec = catalog.resolve(args.system, model=args.model)
-    missing = missing_credentials(spec, args.judge_model)
-    if missing:
-        console.print(f"[red]Missing credentials: {', '.join(missing)}[/red]")
+    names = select_names(args.system, list(catalog.systems), "systems")
+    suites = [get_suite(name) for name in select_names(args.suite, list_suites(), "suites")]
+    plan = []
+    errors = []
+    for suite in suites:
+        tasks = suite.load()
+        if args.split:
+            tasks = [t for t in tasks if t.metadata.get("split") == args.split]
+        if args.limit is not None:
+            tasks = tasks[: args.limit]
+        if not tasks:
+            errors.append(f"{suite.name}: selection contains no tasks")
+            continue
+        compatible = []
+        for name in names:
+            spec = catalog.resolve(name)
+            if args.model and spec.kind != "search":
+                spec = catalog.resolve(name, model=args.model)
+            if spec.kind not in suite.system_kinds:
+                continue
+            settings = dict(spec.settings)
+            if args.num_results is not None:
+                settings["num_results"] = args.num_results
+            if args.enrich_exa_contents:
+                if spec.kind not in ("search", "rag"):
+                    errors.append("--enrich-exa-contents requires search or rag systems")
+                    continue
+                settings["enrich_exa_contents"] = True
+            spec = replace(spec, settings=settings)
+            missing = missing_credentials(spec, args.judge_model if suite.requires_judge else None)
+            if missing:
+                errors.append(f"{name} × {suite.name}: missing {', '.join(missing)}")
+            compatible.append(name)
+            plan.append((spec, suite, tasks))
+        if not compatible:
+            errors.append(f"{suite.name}: select a system of kind {', '.join(suite.system_kinds)}")
+    for spec, suite, tasks in plan:
+        console.print(f"{spec.name} × {suite.name}: {len(tasks)} tasks")
+    if errors:
+        for error in dict.fromkeys(errors):
+            console.print(f"[red]{error}[/red]")
         return 2
-    suite = get_suite(args.suite)
-    tasks = suite.load()
-    if args.limit is not None:
-        tasks = tasks[: args.limit]
-    runner = Runner(
-        spec,
-        suite,
-        judge=Judge(args.judge_model),
-        runs_root=Path(args.runs_dir),
-        run_suffix=args.run_suffix,
-        concurrency=args.concurrency,
-    )
-    console.print(f"Run directory: {runner.run_dir}")
-    with Progress(
-        TextColumn(f"[cyan]{spec.name} × {suite.name}"),
-        BarColumn(),
-        MofNCompleteColumn(),
-        TimeElapsedColumn(),
-        console=console,
-    ) as progress:
-        bar = progress.add_task("", total=len(tasks))
-        summary = asyncio.run(runner.run(tasks, on_done=lambda _: progress.advance(bar)))
-    print_summary(summary)
-    return 0 if summary["failed"] == 0 else 1
+    if args.dry_run:
+        console.print("Preflight passed; no paid API calls made.")
+        return 0
+    summaries = []
+    for spec, suite, tasks in plan:
+        runner = Runner(
+            spec,
+            suite,
+            judge=Judge(args.judge_model),
+            runs_root=Path(args.runs_dir),
+            run_suffix=args.run_suffix,
+            concurrency=args.concurrency,
+        )
+        console.print(f"Run directory: {runner.run_dir}")
+        with Progress(
+            TextColumn(f"[cyan]{spec.name} × {suite.name}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            bar = progress.add_task("", total=len(tasks))
+            summary = asyncio.run(runner.run(tasks, on_done=lambda _: progress.advance(bar)))
+        print_summary(summary)
+        summaries.append(summary)
+    if args.output:
+        write_json(Path(args.output), summaries)
+    return 0 if all(s["failed"] == 0 for s in summaries) else 1
 
 
 def cmd_summary(args: argparse.Namespace) -> int:
@@ -153,11 +211,19 @@ def print_summary(summary: dict) -> None:
     cost = summary["cost"]
     known = "" if cost["system_cost_known"] else " (incomplete)"
     table.add_row("system cost per task", f"${cost['system_usd_per_task']:.4f}{known}")
-    table.add_row("judge cost", f"${cost['judge_usd']:.4f}")
+    judge_known = "" if cost["judge_cost_known"] else " (incomplete)"
+    table.add_row("judge cost", f"${cost['judge_usd']:.4f}{judge_known}")
     table.add_row("mean searches", f"{summary['mean_searches']:.2f}")
     table.add_row("mean latency", f"{summary['mean_latency_s']:.1f}s")
     table.add_row("stop reasons", json.dumps(summary["stop_reasons"]))
     console.print(table)
+
+
+def positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be positive")
+    return number
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -171,15 +237,22 @@ def build_parser() -> argparse.ArgumentParser:
     download.add_argument("--suite")
     download.set_defaults(func=cmd_download)
 
-    run = commands.add_parser("run", help="evaluate one system on one suite (resumable)")
-    run.add_argument("--system", required=True)
-    run.add_argument("--suite", required=True)
+    run = commands.add_parser("run", help="evaluate compatible system/suite pairs (resumable)")
+    run.add_argument("--system", nargs="+", required=True, help="system names or all")
+    run.add_argument("--suite", nargs="+", required=True, help="suite names or all")
     run.add_argument("--model", help="override the system's model, e.g. anthropic/claude-sonnet-5")
-    run.add_argument("--limit", type=int, help="evaluate only the first N tasks")
-    run.add_argument("--concurrency", type=int, default=5)
+    run.add_argument("--limit", type=positive_int, help="evaluate only the first N tasks")
+    run.add_argument("--concurrency", type=positive_int, default=5)
     run.add_argument("--run-suffix", help="start an independent repeat of the same setup")
     run.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL)
     run.add_argument("--runs-dir", default="runs")
+    run.add_argument("--num-results", type=positive_int)
+    run.add_argument("--split", choices=("static", "dynamic"))
+    run.add_argument("--enrich-exa-contents", action="store_true")
+    run.add_argument("--output", "-o", help="write aggregate summaries as JSON")
+    run.add_argument(
+        "--dry-run", action="store_true", help="preflight all pairs without paid calls"
+    )
     run.set_defaults(func=cmd_run)
 
     summary = commands.add_parser("summary", help="recompute a run directory's summary")
@@ -190,7 +263,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
-    sys.exit(args.func(args))
+    try:
+        status = args.func(args)
+    except (ValueError, KeyError, FileNotFoundError) as error:
+        console.print(f"[red]{error}[/red]")
+        status = 2
+    sys.exit(status)
 
 
 if __name__ == "__main__":

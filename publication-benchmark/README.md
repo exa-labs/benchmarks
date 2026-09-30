@@ -60,8 +60,7 @@ detail — and the deliberate vagueness of ToT recollections — is preserved.
 ## Installation
 
 ```bash
-cd publication-benchmark
-uv sync
+uv sync --all-packages --all-groups --locked  # from the repository root
 ```
 
 ## Quick Start
@@ -70,17 +69,17 @@ uv sync
 export EXA_API_KEY="your-exa-key"
 
 # Full benchmark (default searcher: exa)
-pubbench
+uv run pubbench
 
 # Limit queries / results
-pubbench --limit 50 --num-results 10
+uv run pubbench --limit 50 --num-results 10
 
 # One track only
-pubbench --track paper
-pubbench --track tot
+uv run pubbench --track paper
+uv run pubbench --track tot
 
 # Compare searchers, save results
-pubbench --searchers exa brave parallel perplexity --output results.json
+uv run pubbench --searchers exa brave parallel perplexity --output results.json
 ```
 
 ## CLI Options
@@ -102,8 +101,7 @@ publication in **priority order**:
 2. **Fuzzy title** — word-level Jaccard similarity ≥ 0.7
 
 The rank of the first hit is recorded, from which R@1/R@5/R@10 and MRR are
-computed. Grading is fully deterministic (no LLM), so runs are reproducible and
-free.
+computed. Grading is fully deterministic (no LLM), so grading is reproducible and requires no LLM key. Search requests still incur provider charges.
 
 ## Implementing Custom Searchers
 
@@ -126,3 +124,17 @@ To help identity matching, searchers may also populate
 ## License
 
 MIT
+
+## Shared harness
+
+This command translates into the common `bench` runner; it owns no separate
+execution, grading, aggregation or persistence loop. For example:
+
+```bash
+uv run bench run --suite publication --system search-exa-publication --limit 10 --dry-run
+```
+
+`--dry-run` checks data and credentials before paid calls. `--output` saves a JSON
+list of aggregate summaries; detailed results and grades are stored under
+`runs/<run>/tasks/<id>/`. Resume, model overrides and cost accounting follow the
+[common harness](../README.md). Empty retrievals count as zero in the query denominator.

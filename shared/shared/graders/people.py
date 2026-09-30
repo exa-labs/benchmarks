@@ -1,11 +1,7 @@
-import logging
-
 from pydantic import BaseModel, Field
 
 from ..searchers import SearchResult
 from .base import BaseLLMGrader, GradeResult
-
-logger = logging.getLogger(__name__)
 
 PEOPLE_ROLE_GRADING_SYSTEM = """You are evaluating if a person profile page satisfies a job role search query.
 This is BINARY - score 1 if the profile matches, score 0 if it doesn't.
@@ -51,27 +47,18 @@ class PeopleGradeResult(BaseModel):
 
 class PeopleGrader(BaseLLMGrader):
     async def grade(self, query: str, result: SearchResult) -> GradeResult:
-        try:
-            response = await self.client.beta.chat.completions.parse(
-                model=self.model,
-                temperature=self.temperature,
-                messages=[
-                    {"role": "system", "content": PEOPLE_ROLE_GRADING_SYSTEM},
-                    {
-                        "role": "user",
-                        "content": PEOPLE_ROLE_GRADING_USER.format(
-                            query=query,
-                            url=result.url,
-                            title=result.title,
-                            text=result.content or "(no content)",
-                        ),
-                    },
-                ],
-                response_format=PeopleGradeResult,
-            )
-            parsed = response.choices[0].message.parsed
-            assert parsed is not None
-            return GradeResult(scores={"is_match": 1.0 if parsed.score >= 0.5 else 0.0})
-        except Exception as e:
-            logger.warning(f"People grading failed: {e}")
-            return GradeResult(scores={"is_match": 0.0})
+        """Judge a profile against the role and location constraints."""
+        parsed = await self.parse(
+            PEOPLE_ROLE_GRADING_SYSTEM,
+            PEOPLE_ROLE_GRADING_USER.format(
+                query=query,
+                url=result.url,
+                title=result.title,
+                text=result.content or "(no content)",
+            ),
+            PeopleGradeResult,
+        )
+        return GradeResult(
+            scores={"is_match": float(parsed.score >= 0.5)},
+            details={"explanation": parsed.explanation},
+        )

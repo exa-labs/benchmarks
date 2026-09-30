@@ -37,3 +37,6 @@ packages = ["harness"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.hatch.build.hooks.custom]
+path = "build_hook.py"

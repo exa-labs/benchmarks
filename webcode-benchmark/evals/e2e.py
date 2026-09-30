@@ -8,13 +8,13 @@ from rich.console import Console
 from rich.table import Table
 
 console = Console()
-DATA_DIR = Path(__file__).parent.parent / "data"
+DATA_DIR = Path(__file__).parent / "data"
+if not DATA_DIR.exists():
+    DATA_DIR = Path(__file__).parent.parent / "data"
 
 
 def load_tasks(limit: int | None = None) -> list[dict]:
     filepath = DATA_DIR / "e2e" / "code_e2e.jsonl"
-    if not filepath.exists():
-        return []
     tasks = []
     with open(filepath) as f:
         for line in f:
@@ -24,19 +24,14 @@ def load_tasks(limit: int | None = None) -> list[dict]:
     return tasks[:limit] if limit else tasks
 
 
-def print_info():
-    tasks = load_tasks()
+def print_info(limit: int | None = None):
+    """Describe the dataset export; this command does not execute coding tasks."""
+    tasks = load_tasks(limit)
 
     console.print("\n[bold]End-to-End Code Tasks Dataset[/bold]")
-    console.print(
-        "  GitHub release tasks (post-2026-02-01, 100+ star repos)."
-    )
-    console.print(
-        "  Focuses on breaking changes and new functions."
-    )
-    console.print(
-        "  No agent harness included — bring your own (e.g. mini-swe-agent).\n"
-    )
+    console.print("  GitHub release tasks (post-2026-02-01, 100+ star repos).")
+    console.print("  Focuses on breaking changes and new functions.")
+    console.print("  No agent harness included — bring your own (e.g. mini-swe-agent).\n")
 
     if not tasks:
         console.print("[yellow]No tasks loaded. Ensure data/e2e/code_e2e.jsonl exists.[/yellow]")
@@ -66,7 +61,9 @@ def print_info():
 
     console.print(table)
 
-    console.print("\n[dim]Schema: id, slug, repo, repo_url, release_tag, task_description, test_patch, metadata[/dim]")
+    console.print(
+        "\n[dim]Schema: id, slug, repo, repo_url, release_tag, task_description, test_patch, metadata[/dim]"
+    )
     console.print("[dim]Load with: from evals.e2e import load_tasks[/dim]")
 
 
@@ -74,9 +71,9 @@ def main():
     parser = argparse.ArgumentParser(description="E2E code tasks dataset (no runner)")
     parser.add_argument("--info", action="store_true", default=True, help="Print dataset info")
     parser.add_argument("--limit", type=int, help="Limit tasks displayed")
-    parser.parse_args()
+    args = parser.parse_args()
 
-    print_info()
+    print_info(args.limit)
 
 
 if __name__ == "__main__":

@@ -13,13 +13,14 @@ from typing import Any
 
 import httpx
 import pytest
+from harness.legacy import legacy_main
 from harness.llm import anthropic as anthropic_client
 from harness.llm import openai as openai_client
 from harness.llm.clients import ModelClient
-from harness.llm.judge import Judge
+from harness.llm.judge import Judge, JudgeOutputError, track_judge_usage
 from harness.llm.pricing import model_price, token_cost
 from harness.llm.types import ContextWindowExceeded, Generation, HostedSearch, ToolCall, Usage
-from harness.runner import Runner
+from harness.runner import Runner, load_summary_outcomes, summarize
 from harness.scout import (
     BUDGET_WARNING,
     FINAL_SYNTHESIS_PROMPT,
@@ -31,9 +32,11 @@ from harness.scout import (
     truncate_oldest_exchange,
 )
 from harness.suites.base import Grade, Suite, Task
+from harness.suites.registry import get_suite
 from harness.systems import Catalog, System
 from harness.tools import OBJECTIVE_SEARCH_TOOL, QUERY_SEARCH_TOOL, SearchTool
 from pydantic import BaseModel
+from shared.graders.base import gather_judgments
 from shared.searchers import (
     BraveSearcher,
     ExaSearcher,
@@ -43,6 +46,10 @@ from shared.searchers import (
     SearchResponse,
     SearchResult,
 )
+
+from harness import cli
+from harness import rag as rag_module
+from harness import systems as system_module
 
 # --------------------------------------------------------------------------- helpers
 
@@ -198,7 +205,7 @@ async def test_brave_llm_context_request_and_parse():
             },
         )
 
-    searcher = BraveSearcher(api_key="k", search_type="llm_context")
+    searcher = BraveSearcher(api_key="k")
     searcher._client = mock_client(handler)
     response = await searcher.run("What's C++20's \"modules\"?", 10)
     assert seen["url"] == "https://api.search.brave.com/res/v1/llm/context"
@@ -761,7 +768,7 @@ async def test_judge_prompts_for_json_and_retries_without_structured_outputs():
 # --------------------------------------------------------------------------- catalog
 
 
-def test_every_catalog_system_builds(monkeypatch):
+async def test_every_catalog_system_builds(monkeypatch):
     for name in (
         "OPENAI_API_KEY",
         "ANTHROPIC_API_KEY",
@@ -769,13 +776,14 @@ def test_every_catalog_system_builds(monkeypatch):
         "BRAVE_SEARCH_API_KEY",
         "PARALLEL_API_KEY",
         "PERPLEXITY_API_KEY",
+        "TAVILY_API_KEY",
     ):
         monkeypatch.setenv(name, "test")
     catalog = Catalog.load()
     assert catalog.systems
     for name in catalog.systems:
         spec = catalog.resolve(name)
-        System(spec)
+        await System(spec).close()
         assert spec.to_dict()["name"] == name
 
 
@@ -789,7 +797,7 @@ def test_scout_systems_differ_only_in_search_backend():
 def test_model_override_and_hosted_provider_guard():
     catalog = Catalog.load()
     assert (
-        catalog.resolve("scout-brave", model="anthropic/claude-sonnet-5").model
+        catalog.resolve("scout-brave-llm-context", model="anthropic/claude-sonnet-5").model
         == "anthropic/claude-sonnet-5"
     )
     with pytest.raises(ValueError, match="hosted search"):
@@ -817,7 +825,8 @@ class EchoSystem:
         self.fail = set(fail)
         self.calls = 0
 
-    async def answer(self, prompt):
+    async def execute(self, task, suite):
+        prompt = suite.prompt(task)
         self.calls += 1
         if prompt in self.fail:
             raise RuntimeError("boom")
@@ -839,7 +848,7 @@ class NoJudge:
 def make_runner(tmp_path, system):
     catalog = Catalog.load()
     return Runner(
-        catalog.resolve("scout-exa-auto"),
+        catalog.resolve("scout-exa-auto-highlights"),
         EchoSuite(),
         judge=NoJudge(),
         runs_root=tmp_path,
@@ -878,21 +887,21 @@ async def test_runner_regrades_without_rerunning_the_system(tmp_path):
 def test_run_directory_changes_with_the_spec(tmp_path):
     catalog = Catalog.load()
     a = Runner(
-        catalog.resolve("scout-exa-auto"),
+        catalog.resolve("scout-exa-auto-highlights"),
         EchoSuite(),
         judge=NoJudge(),
         runs_root=tmp_path,
         system=EchoSystem(),
     )
     b = Runner(
-        catalog.resolve("scout-exa-fast"),
+        catalog.resolve("scout-exa-fast-highlights"),
         EchoSuite(),
         judge=NoJudge(),
         runs_root=tmp_path,
         system=EchoSystem(),
     )
     c = Runner(
-        catalog.resolve("scout-exa-auto"),
+        catalog.resolve("scout-exa-auto-highlights"),
         EchoSuite(),
         judge=NoJudge(),
         runs_root=tmp_path,
@@ -900,3 +909,269 @@ def test_run_directory_changes_with_the_spec(tmp_path):
         system=EchoSystem(),
     )
     assert len({a.run_dir, b.run_dir, c.run_dir}) == 3
+
+
+@pytest.mark.parametrize(
+    "name,option,value",
+    [
+        ("exa-instant-highlights", "type", "instant"),
+        ("exa-fast-highlights", "type", "fast"),
+        ("exa-auto-highlights", "type", "auto"),
+        ("perplexity-web", "search_type", "web"),
+        ("perplexity-fast", "search_type", "fast"),
+        ("parallel-turbo", "mode", "turbo"),
+        ("parallel-fast", "mode", "fast"),
+        ("parallel-basic", "mode", "basic"),
+        ("parallel-advanced", "mode", "advanced"),
+        ("brave-llm-context", "provider", "brave"),
+    ],
+)
+def test_requested_scout_presets(name, option, value):
+    spec = Catalog.load().resolve(f"scout-{name}")
+    assert spec.searcher[option] == value
+    if name.startswith("exa-"):
+        assert spec.searcher["contents"] == {"highlights": True}
+
+
+def test_scout_catalog_contains_exactly_the_requested_api_presets():
+    assert {n.removeprefix("scout-") for n in Catalog.load().systems if n.startswith("scout-")} == {
+        "exa-instant-highlights",
+        "exa-fast-highlights",
+        "exa-auto-highlights",
+        "perplexity-web",
+        "perplexity-fast",
+        "parallel-turbo",
+        "parallel-fast",
+        "parallel-basic",
+        "parallel-advanced",
+        "brave-llm-context",
+    }
+
+
+def test_brave_rejects_removed_web_search_option():
+    with pytest.raises(ValueError, match="only LLM Context"):
+        BraveSearcher(api_key="test", search_type="web")
+
+
+@pytest.mark.parametrize("kind", ["search", "rag", "extract-rag"])
+async def test_system_dispatches_result_contract_and_never_sends_gold(monkeypatch, kind):
+    searcher = FakeSearcher()
+    extracts = []
+
+    async def extract(url, query=None):
+        extracts.append((url, query))
+        return [SearchResult(url=url, title="source", text="evidence")]
+
+    searcher.extract = extract
+    client = ScriptedClient([gen("answer")])
+    monkeypatch.setattr(system_module, "build_searcher", lambda *args: searcher)
+    monkeypatch.setattr(rag_module, "create_client", lambda *args: client)
+    name = "extract-rag-exa-extract" if kind == "extract-rag" else f"{kind}-exa-auto-highlights"
+    system = System(Catalog.load().resolve(name))
+    task = Task(
+        "id",
+        "question",
+        "SECRET GOLD",
+        {"citation_url": "https://source.example", "gold": "SECRET GOLD"},
+    )
+    result = await system.execute(task, EchoSuite())
+    if kind == "search":
+        assert result["results"][0]["url"] == "https://example.com/question"
+        assert not client.requests
+    else:
+        assert result["answer"] == "answer" and result["citations"]
+        assert "SECRET GOLD" not in json.dumps(client.requests)
+    assert extracts == ([("https://source.example", "question")] if kind == "extract-rag" else [])
+    assert len(searcher.calls) == (0 if kind == "extract-rag" else 1)
+    await system.close()
+
+
+async def test_failed_grades_retain_costs_across_retries_and_resume(tmp_path):
+    class JudgedSuite(EchoSuite):
+        async def grade(self, task, response, judge):
+            await judge.complete_json("grade", _Verdict)
+            return Grade({"score": 1.0})
+
+    client = ScriptedClient([gen("invalid", cost=0.2), gen("invalid", cost=0.3)])
+    system = EchoSystem()
+    suite = JudgedSuite()
+    spec = Catalog.load().resolve("scout-exa-auto-highlights")
+    runner = Runner(
+        spec, suite, judge=Judge(client=client, json_attempts=1), system=system, runs_root=tmp_path
+    )
+    tasks = suite.load()[:1]
+    failed = await runner.run(tasks)
+    assert failed["failed"] == 1 and system.calls == 1
+    assert failed["cost"]["system_usd"] == 0.01
+    assert failed["cost"]["judge_usd"] == pytest.approx(0.5)
+    assert failed["cost"]["system_cost_known"]
+    assert not (runner.run_dir / "tasks" / "t_0" / "grade.json").exists()
+    rebuilt = summarize(suite, load_summary_outcomes(runner.run_dir, suite, tasks), runner.config)
+    assert rebuilt["cost"] == failed["cost"]
+    client.script.append(gen('{"label":"yes"}', cost=0.4))
+    success = await runner.run(tasks)
+    assert system.calls == 1 and success["graded"] == 1
+    assert success["cost"]["judge_usd"] == pytest.approx(0.9)
+    assert json.loads((runner.run_dir / "tasks" / "t_0" / "grade.json").read_text())[
+        "judge_cost_usd"
+    ] == pytest.approx(0.9)
+    assert (await runner.run(tasks))["cost"] == success["cost"]
+
+
+async def test_failed_parallel_judging_waits_for_all_costs():
+    client = ScriptedClient([gen("invalid", cost=0.2), gen('{"label":"ok"}', cost=0.3)])
+    judge = Judge(client=client, json_attempts=1)
+
+    async def delayed_grade():
+        await asyncio.sleep(0.01)
+        return await judge.complete_json("second", _Verdict)
+
+    with track_judge_usage() as spend:
+        with pytest.raises(JudgeOutputError):
+            await gather_judgments(judge.complete_json("first", _Verdict), delayed_grade())
+    assert spend.calls == 2 and spend.total_usd == pytest.approx(0.5)
+
+
+def test_cli_preflights_whole_matrix_before_execution(monkeypatch, tmp_path):
+    monkeypatch.setenv("EXA_API_KEY", "test")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    def fail_if_built(*args, **kwargs):
+        raise AssertionError("No runner should be built until the entire plan is valid")
+
+    monkeypatch.setattr(cli, "Runner", fail_if_built)
+    args = cli.build_parser().parse_args(
+        [
+            "run",
+            "--suite",
+            "publication",
+            "people",
+            "--system",
+            "search-exa-auto-highlights",
+            "--limit",
+            "1",
+            "--runs-dir",
+            str(tmp_path),
+        ]
+    )
+    assert cli.cmd_run(args) == 2
+    assert not list(tmp_path.iterdir())
+
+
+def test_cli_publication_needs_no_judge_key(monkeypatch):
+    monkeypatch.setenv("EXA_API_KEY", "test")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    args = cli.build_parser().parse_args(
+        [
+            "run",
+            "--suite",
+            "publication",
+            "publication-tot",
+            "--system",
+            "search-exa-publication",
+            "--limit",
+            "1",
+            "--dry-run",
+        ]
+    )
+    assert cli.cmd_run(args) == 0
+
+
+def test_mixed_legacy_company_tracks_accept_model_override(monkeypatch):
+    monkeypatch.setenv("EXA_API_KEY", "test")
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    with pytest.raises(SystemExit) as result:
+        legacy_main("company", ["--limit", "1", "--rag-model", "gpt-5.6-luna", "--dry-run"])
+    assert result.value.code == 0
+
+
+async def test_runner_rejects_colliding_task_paths(tmp_path):
+    runner = make_runner(tmp_path, EchoSystem())
+    with pytest.raises(ValueError, match="collide"):
+        await runner.run([Task("a/b", "a", "a"), Task("a_b", "b", "b")])
+
+
+@pytest.mark.parametrize(
+    "provider,mode,price",
+    [
+        ("parallel", "turbo", 0.001),
+        ("parallel", "fast", 0.001),
+        ("parallel", "basic", 0.005),
+        ("parallel", "advanced", 0.005),
+        ("perplexity", "web", 0.005),
+        ("perplexity", "fast", 0.001),
+    ],
+)
+async def test_requested_modes_reach_provider_http(provider, mode, price):
+    def handle(request):
+        payload = json.loads(request.content)
+        if provider == "parallel":
+            assert payload["mode"] == mode
+            assert payload["advanced_settings"]["max_results"] == 10
+        else:
+            assert payload.get("search_type", "web") == mode
+            assert payload["max_results"] == 10
+        return httpx.Response(200, json={"results": []})
+
+    searcher = (
+        ParallelSearcher(api_key="test", mode=mode)
+        if provider == "parallel"
+        else PerplexitySearcher(api_key="test", search_type=mode)
+    )
+    await searcher.close()
+    searcher._client = mock_client(handle)
+    result = await searcher.run("question", 10)
+    assert result.cost_usd == price
+    await searcher.close()
+
+
+@pytest.mark.parametrize(
+    "suite_name,system_name",
+    [
+        ("people", "search-exa-people"),
+        ("company-retrieval", "search-exa-company"),
+        ("company-rag", "rag-exa-company"),
+        ("publication", "search-exa-publication"),
+        ("publication-tot", "search-exa-publication"),
+        ("webcode-rag", "rag-exa-webcode"),
+        ("webcode-highlights", "extract-rag-exa-extract"),
+    ],
+)
+async def test_migrated_suites_execute_through_real_runner(
+    monkeypatch, tmp_path, suite_name, system_name
+):
+    class ExtractableSearcher(FakeSearcher):
+        async def extract(self, url, query=None):
+            return [SearchResult(url=url, title="source", text="evidence")]
+
+    class SchemaClient(ScriptedClient):
+        async def generate(self, messages, **kwargs):
+            schema = kwargs["response_schema"]["schema"]["properties"]
+            if "correctness" in schema:
+                reply = {"reasoning": "matches", "correctness": "CORRECT"}
+            elif "groundedness" in schema:
+                reply = {
+                    "reasoning": "supported",
+                    "groundedness": "GROUNDED",
+                    "source_indices": [1],
+                    "evidence": "evidence",
+                }
+            else:
+                reply = {"score": 1.0, "explanation": "matches"}
+            return gen(json.dumps(reply))
+
+    monkeypatch.setattr(system_module, "build_searcher", lambda *args: ExtractableSearcher())
+    monkeypatch.setattr(
+        rag_module, "create_client", lambda *args: ScriptedClient([gen("candidate answer")])
+    )
+    suite = get_suite(suite_name)
+    runner = Runner(
+        Catalog.load().resolve(system_name),
+        suite,
+        judge=Judge(client=SchemaClient([])),
+        runs_root=tmp_path,
+    )
+    summary = await runner.run(suite.load()[:1])
+    assert summary["graded"] == 1 and summary["failed"] == 0
+    assert suite.primary_metric in summary["metrics"]
+    assert (runner.run_dir / "summary.json").exists()

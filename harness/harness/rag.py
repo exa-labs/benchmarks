@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from shared.searchers import Searcher
+from shared.searchers import Searcher, SearchResponse, SearchResult
 
 from harness.llm.clients import ModelClient, create_client
 from harness.tools import normalize_results
@@ -29,7 +29,7 @@ Rules (absolute, no exceptions):
 3. If the search results do not contain enough information to answer the question,
    reply exactly: "I don't know"
 4. Do NOT hedge with "based on my knowledge" or similar — you have no knowledge.
-5. Keep your answer short and concise (1-2 sentences max).
+5. Match the requested answer format, including complete lists and tables when requested.
 6. Prefer information from earlier (higher-ranked) results — they are more relevant.
 7. If you cite a fact, it must be traceable to a specific search result.
 8. Use today's date to resolve relative time references (e.g. "yesterday", "last week", "3 days ago")."""
@@ -65,6 +65,15 @@ class RAGResult:
         return {**asdict(self), "total_cost_usd": self.total_cost_usd}
 
 
+async def enrich_results(results: list[SearchResult], extractor: Searcher) -> None:
+    """Add full page text while preserving ranked URLs and provider metadata."""
+    for result in results:
+        fetched = await extractor.extract(result.url)
+        if fetched:
+            result.text = fetched[0].content or result.content
+            result.highlights = []
+
+
 class SingleStepRAG:
     """Retrieve once with the question as the query, then synthesize."""
 
@@ -77,16 +86,25 @@ class SingleStepRAG:
         max_output_tokens: int | None = None,
         reasoning_effort: str | None = None,
         client: ModelClient | None = None,
+        enrichment: Searcher | None = None,
     ) -> None:
         self.searcher = searcher
         self.num_results = num_results
         self.max_output_tokens = max_output_tokens
         self.reasoning_effort = reasoning_effort
         self.client = client or create_client(model)
+        self.enrichment = enrichment
 
-    async def run(self, question: str) -> RAGResult:
+    async def run(self, question: str, *, url: str | None = None) -> RAGResult:
         start = time.monotonic()
-        response = await self.searcher.run(question, self.num_results)
+        if url is None:
+            response = await self.searcher.run(question, self.num_results)
+        else:
+            response = SearchResponse(
+                results=await self.searcher.extract(url, query=question), queries=[url]
+            )
+        if self.enrichment is not None:
+            await enrich_results(response.results, self.enrichment)
         kept, skipped = normalize_results(response.results)
         citations = [
             {
@@ -124,7 +142,9 @@ class SingleStepRAG:
             search_queries=response.queries,
             model_cost_usd=generation.cost_usd or 0.0,
             search_cost_usd=response.cost_usd or 0.0,
-            cost_known=generation.cost_usd is not None and response.cost_usd is not None,
+            cost_known=generation.cost_usd is not None
+            and response.cost_usd is not None
+            and self.enrichment is None,
             usage=generation.usage.to_dict(),
             latency_ms=(time.monotonic() - start) * 1000,
             messages=messages,

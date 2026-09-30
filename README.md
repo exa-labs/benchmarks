@@ -6,29 +6,34 @@ Open benchmarks and an open evaluation harness for web search APIs.
   benchmarks (BrowseComp, FRAMES, DeepSearchQA, WideSearch) inside the same
   research agent, so the only thing that differs between systems is the search API.
 - **[Exa benchmarks](#benchmarks)** are task-specific datasets we built (code docs, people,
-  companies, publications), each with its own runner.
+  companies, publications), run through the same harness.
 
 ## Evaluation harness
 
 Comparing search APIs is only fair when everything around the search call is held fixed.
-The harness defines three kinds of system in [`systems.toml`](systems.toml):
+The harness defines the following execution modes in [`systems.toml`](systems.toml):
 
 | Kind | What runs | Measures |
 |------|-----------|----------|
 | **Scout** over a search API | One research agent (Scout) with one `search` tool bound to the API under test. Model, prompts and budgets are shared by every Scout system. | How much the search API helps an agent |
 | **Native search** | The same Scout loop, but the model provider's own hosted web search (OpenAI `web_search`, Anthropic `web_search`) replaces the search tool. | A model vendor's built-in search, in the same loop |
 | **Single-step RAG** | One search with the question as the query, then one answer from only those results. | Retrieval quality of a single request |
+| **Search** | One ranked retrieval request, scored directly. | People, company and publication retrieval |
+| **Extract + RAG** | Extract evidence from the task URL, then synthesize once. | WebCode Highlights |
 
 Built-in systems (`uv run bench list` prints the live catalog):
 
-| Search API | Scout | Single-step RAG |
-|------------|-------|-----------------|
-| Exa (`auto`, `fast`, `instant`; highlights) | `scout-exa-auto`, `scout-exa-fast`, `scout-exa-instant` | `rag-exa-auto`, `rag-exa-fast` |
-| Brave (LLM Context) | `scout-brave` | `rag-brave` |
-| Parallel Search (`advanced`, `fast`) | `scout-parallel-advanced`, `scout-parallel-fast` | `rag-parallel-advanced` |
-| Perplexity Search API | `scout-perplexity` | `rag-perplexity` |
-| OpenAI hosted web search | `openai-native-search`, `openai-native-search-luna` | — |
-| Anthropic hosted web search | `anthropic-native-search` | — |
+| Search API | Scout systems |
+|------------|---------------|
+| Exa highlights | `scout-exa-instant-highlights`, `scout-exa-fast-highlights`, `scout-exa-auto-highlights` |
+| Perplexity Search | `scout-perplexity-web`, `scout-perplexity-fast` |
+| Parallel Search | `scout-parallel-turbo`, `scout-parallel-fast`, `scout-parallel-basic`, `scout-parallel-advanced` |
+| Brave LLM Context | `scout-brave-llm-context` |
+| OpenAI hosted web search | `openai-native-search`, `openai-native-search-luna` |
+| Anthropic hosted web search | `anthropic-native-search` |
+
+Each of the ten API presets also has `rag-` and `search-` variants. Brave uses only
+LLM Context; its `/web/search` endpoint is not supported.
 
 Scout and RAG systems default to `openai/gpt-5.6-luna`; pass `--model` to run any of them
 with another OpenAI or Anthropic model (native-search systems stay on their own provider).
@@ -42,30 +47,62 @@ with another OpenAI or Anthropic model (native-search systems stay on their own 
 | `dsqa` | 900 | `f1` | [google/deepsearchqa](https://huggingface.co/datasets/google/deepsearchqa) |
 | `widesearch` | 200 | `f1_by_row` | [ByteDance-Seed/WideSearch](https://huggingface.co/datasets/ByteDance-Seed/WideSearch) |
 
-Data is downloaded at pinned revisions on first use and verified; nothing is redistributed
-here. Answers are graded by an LLM judge (`openai/gpt-5.6-luna` by default, `--judge-model`
-to change it) with each benchmark's grading prompt.
+The four public suites above accept Scout and single-step RAG systems. Their data is
+downloaded at pinned revisions and verified. The repository datasets below use the
+same runner, grading interface, resume artifacts and cost summaries:
+
+| Suite | Tasks | System kind | Primary metric |
+|-------|------:|-------------|----------------|
+| `people` | 1,400 | `search` | `recall_at_10` |
+| `company-retrieval` | 605 | `search` | `recall_at_10` |
+| `company-rag` | 234 | `scout`, `rag` | `accuracy` |
+| `publication` | 1,472 | `search` | `recall_at_10` |
+| `publication-tot` | 394 | `search` | `recall_at_10` |
+| `webcode-rag` | 307 | `rag` | `grounded` |
+| `webcode-highlights` | 250 | `extract-rag` | `grounded` |
+
+The judge defaults to `openai/gpt-5.6-luna` (`--judge-model` overrides it).
+Publication grading is deterministic and needs no model key. Empty retrievals
+receive zero recall and precision. WebCode E2E remains a **dataset-only export**
+of 33 tasks, outside the runnable suite catalog; it has no coding-agent executor
+or bundled setup files. The Contents track has been removed because its licensed
+reference data is unavailable.
 
 ### Quick start
 
 ```bash
 git clone https://github.com/exa-labs/benchmarks.git
 cd benchmarks
-uv sync --all-packages
+uv sync --all-packages --all-groups --locked
 
 export OPENAI_API_KEY=...        # Scout model and the judge
 export EXA_API_KEY=...           # plus a key for each search API you run:
 # BRAVE_SEARCH_API_KEY, PARALLEL_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_API_KEY
 
 uv run bench list
-uv run bench run --system scout-exa-auto --suite browsecomp --limit 5
-uv run bench run --system scout-brave --suite browsecomp --limit 5
-uv run bench run --system scout-exa-auto --model anthropic/claude-sonnet-5 --suite dsqa --limit 20
+uv run bench run --system scout-exa-auto-highlights --suite browsecomp --limit 5
+uv run bench run --system scout-brave-llm-context --suite browsecomp --limit 5
+uv run bench run --system scout-exa-auto-highlights --model anthropic/claude-sonnet-5 --suite dsqa --limit 20
 ```
 
 These commands make paid API calls. `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL` point the model
 clients at any compatible gateway. `uv run bench download` fetches and verifies every suite
 up front.
+
+Run every runnable suite with compatible Exa systems (one task per suite first):
+
+```bash
+uv run bench run --suite all \
+  --system rag-exa-auto-highlights search-exa-auto-highlights extract-rag-exa-extract \
+  --limit 1 --dry-run
+# Remove --dry-run to execute; remove --limit for the full datasets.
+```
+
+Both selectors accept multiple names or `all`; the runner executes compatible pairs.
+All selected suites must have a compatible system. Data, selection and required
+credentials are checked for the entire plan before the first paid call. `--limit`
+applies per suite; `--output` saves a JSON list of run summaries. The legacy commands
+below translate into this same CLI, with no separate execution loops.
 
 ### How Scout works
 
@@ -89,6 +126,7 @@ Each run writes `runs/{system}-{suite}[-{suffix}]-{hash}/`:
 config.json               resolved system, suite revision, judge model
 tasks/<task-id>/result.json   answer, citations, costs and the full trajectory
 tasks/<task-id>/grade.json    scores, grader reasoning, judge cost
+tasks/<task-id>/cost.json     cumulative judge spend, including failed grading attempts
 summary.json              metrics, failed-as-zero primary metric, cost per task, stop reasons
 ```
 
@@ -99,7 +137,9 @@ failed tasks are retried. `--run-suffix rep2` starts an independent repeat.
 Cost per task is split into model tokens (priced from [`harness/harness/llm/pricing.py`](harness/harness/llm/pricing.py))
 and search calls (the provider's reported cost when it returns one, otherwise its list price);
 judge cost is reported separately. A model with no listed price is reported as unknown, not
-zero.
+zero. Answered tasks retain their costs even when grading fails; unsuccessful model
+or search calls with unknown spend mark accounting incomplete. Grade retries accumulate
+judge spend across resumed runs.
 
 ### Adding a search API
 
@@ -124,7 +164,7 @@ own terms:
 
 | Benchmark | Queries | Tracks | Description |
 |-----------|---------|--------|-------------|
-| [WebCode](webcode-benchmark/) | ~840 | Contents, Highlights, RAG, E2E | Code docs extraction, query-aware highlights, long-context QA |
+| [WebCode](webcode-benchmark/) | 557 + 33 | Highlights, RAG; E2E dataset only | Code documentation retrieval and grounded QA |
 | [People Search](simple-people-benchmark/) | 1,400 | Retrieval | Find people profiles by role, location, seniority |
 | [Company Search](simple-company-benchmark/) | ~800 | Retrieval + RAG | Find companies by name, industry, geography, funding |
 | [Publication Retrieval](publication-benchmark/) | 1,866 | Publication, ToT | Find the exact publication by grounded question or tip-of-the-tongue recollection |
@@ -137,14 +177,6 @@ own terms:
 > [Running the Exa benchmarks](#running-the-exa-benchmarks) before comparing against it.
 
 ## WebCode Results
-
-**Contents** — extraction fidelity against golden markdown (250 URLs)
-
-| Searcher | Completeness | Accuracy | Structure | Signal | Code Recall | Table Recall | ROUGE-L |
-|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Exa | **82.8** | **89.3** | **81.8** | **94.5** | **96.7** | 91.9 | **83.2** |
-| Parallel | 74.2 | 89.2 | 80.8 | 77.6 | 94.1 | **92.2** | 73.7 |
-| Claude | 59.8 | 81.1 | 75.1 | 55.1 | 82.4 | 82.0 | 66.8 |
 
 **Highlights** — in-document retrieval given a URL + query (250 queries)
 
@@ -214,65 +246,26 @@ Two tracks designed to separate retrieval from fact extraction.
 
 ## Running the Exa benchmarks
 
-```bash
-git clone https://github.com/exa-labs/benchmarks.git
-cd benchmarks
-```
-
-### WebCode Benchmark
+From the repository root after the workspace install above:
 
 ```bash
-cd webcode-benchmark
-uv sync
-
-export EXA_API_KEY="your-key"
-export OPENAI_API_KEY="your-key"
-
-python -m evals.contents --searchers exa tavily parallel --limit 20
-python -m evals.highlights --searchers exa tavily parallel --limit 20
-python -m evals.rag --searchers exa brave perplexity --limit 20
-python -m evals.e2e --info
+uv run pbench --searchers exa --limit 50
+uv run cbench --limit 50                    # both company tracks
+uv run cbench --track retrieval --split static
+uv run cbench --track rag
+uv run pubbench --limit 50                 # both publication tracks; no judge key needed
+uv run pubbench --track tot --searchers exa brave parallel --output results.json
+uv run python -m evals.highlights --searchers exa tavily parallel --limit 20
+uv run python -m evals.rag --searchers exa brave perplexity --limit 20
+uv run python -m evals.e2e --info           # inspect dataset only
 ```
 
-### People Benchmark
-
-```bash
-cd simple-people-benchmark
-uv sync
-
-export EXA_API_KEY="your-key"
-export OPENAI_API_KEY="your-key"
-
-pbench --limit 50
-```
-
-### Company Benchmark
-
-```bash
-cd simple-company-benchmark
-uv sync
-
-export EXA_API_KEY="your-key"
-export OPENAI_API_KEY="your-key"
-
-cbench --limit 50
-cbench --track retrieval
-cbench --track rag
-```
-
-### Publication Retrieval Benchmark
-
-```bash
-cd publication-benchmark
-uv sync
-
-export EXA_API_KEY="your-key"
-
-pubbench --limit 50
-pubbench --track paper
-pubbench --track tot
-pubbench --searchers exa brave parallel --output results.json
-```
+Legacy provider aliases select task-specific presets in `systems.toml` (for example,
+`pbench --searchers exa` selects `search-exa-people`). They accept `--dry-run`,
+`--runs-dir`, `--run-suffix`, `--judge-model` and `--model`. Results now use the common
+per-task artifact layout; `--output` writes aggregate summaries. Historical tables
+above predate the unified model defaults and empty-result handling and must be rerun
+for current comparisons.
 
 ## Implementing Your Own Searcher
 
@@ -296,7 +289,7 @@ class MySearcher(Searcher):
         return [SearchResult(url=url, text=content)]
 ```
 
-The `search` method is used by retrieval and RAG evals. The `extract` method is used by the contents and highlights evals for URL-based extraction. The evaluation harness calls `run`, which returns the same results plus the request's cost and latency; the default `run` wraps `search` and reports the cost as unknown, so override it for a provider with a known price (see [`exa.py`](shared/shared/searchers/exa.py)).
+The `search` method is used by retrieval and RAG evals. The `extract` method is used by the highlights eval for URL-based extraction. The evaluation harness calls `run`, which returns the same results plus the request's cost and latency; the default `run` wraps `search` and reports the cost as unknown, so override it for a provider with a known price (see [`exa.py`](shared/shared/searchers/exa.py)).
 
 ## Requirements
 

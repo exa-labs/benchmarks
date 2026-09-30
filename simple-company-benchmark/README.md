@@ -56,8 +56,7 @@ An open benchmark for evaluating company search. Test how well your search API f
 ## Installation
 
 ```bash
-cd simple-company-benchmark
-uv sync
+uv sync --all-packages --all-groups --locked  # from the repository root
 ```
 
 ## Quick Start
@@ -68,21 +67,21 @@ export EXA_API_KEY="your-exa-key"
 export OPENAI_API_KEY="your-openai-key"
 
 # Run full benchmark
-cbench
+uv run cbench
 
 # Run with limit
-cbench --limit 50
+uv run cbench --limit 50
 
 # Run specific track
-cbench --track retrieval
-cbench --track rag
+uv run cbench --track retrieval
+uv run cbench --track rag
 
 # Run specific split
-cbench --split static
-cbench --split dynamic
+uv run cbench --split static
+uv run cbench --split dynamic
 
 # Save results
-cbench --output results.json
+uv run cbench --output results.json
 ```
 
 ## CLI Options
@@ -113,7 +112,7 @@ cbench --output results.json
 Create a new searcher by extending the base class:
 
 ```python
-from src.searchers import Searcher, SearchResult
+from shared.searchers import Searcher, SearchResult
 
 class MySearcher(Searcher):
     name = "my-searcher"
@@ -132,3 +131,17 @@ class MySearcher(Searcher):
 ## License
 
 MIT
+
+## Shared harness
+
+This command translates into the common `bench` runner; it owns no separate
+execution, grading, aggregation or persistence loop. For example:
+
+```bash
+uv run bench run --suite company-retrieval --system search-exa-company --limit 10 --dry-run
+```
+
+`--dry-run` checks data and credentials before paid calls. `--output` saves a JSON
+list of aggregate summaries; detailed results and grades are stored under
+`runs/<run>/tasks/<id>/`. Resume, model overrides and cost accounting follow the
+[common harness](../README.md). Empty retrievals count as zero in the query denominator.

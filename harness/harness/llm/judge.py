@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TypeVar
 
@@ -33,6 +35,27 @@ class JudgeResponse:
     cost_usd: float | None
 
 
+@dataclass
+class JudgeUsage:
+    total_usd: float = 0.0
+    known: bool = True
+    calls: int = 0
+
+
+_ACTIVE_USAGE: ContextVar[JudgeUsage | None] = ContextVar("judge_usage", default=None)
+
+
+@contextmanager
+def track_judge_usage():
+    """Track all judge calls for a task, including parsing retries and failed grades."""
+    usage = JudgeUsage()
+    token = _ACTIVE_USAGE.set(usage)
+    try:
+        yield usage
+    finally:
+        _ACTIVE_USAGE.reset(token)
+
+
 class JudgeOutputError(ValueError):
     """The judge did not return JSON matching the requested schema."""
 
@@ -53,7 +76,13 @@ class Judge:
         self.reasoning_effort = reasoning_effort
         self.max_output_tokens = max_output_tokens
         self.json_attempts = json_attempts
-        self._client = client or create_client(model)
+        self._client = client
+
+    @property
+    def client(self) -> ModelClient:
+        if self._client is None:
+            self._client = create_client(self.model)
+        return self._client
 
     async def complete(
         self,
@@ -65,12 +94,22 @@ class Judge:
         """Return the judge's free-text reply to one prompt."""
         messages = [{"role": "system", "content": system}] if system else []
         messages.append({"role": "user", "content": prompt})
-        generation = await self._client.generate(
-            messages,
-            max_output_tokens=self.max_output_tokens,
-            reasoning_effort=self.reasoning_effort,
-            response_schema=response_schema,
-        )
+        usage = _ACTIVE_USAGE.get()
+        try:
+            generation = await self.client.generate(
+                messages,
+                max_output_tokens=self.max_output_tokens,
+                reasoning_effort=self.reasoning_effort,
+                response_schema=response_schema,
+            )
+        except Exception:
+            if usage is not None:
+                usage.known = False
+            raise
+        if usage is not None:
+            usage.calls += 1
+            usage.total_usd += generation.cost_usd or 0.0
+            usage.known &= generation.cost_usd is not None
         return JudgeResponse(generation.text, generation.usage, generation.cost_usd)
 
     async def complete_json(
@@ -88,7 +127,7 @@ class Judge:
         and cost cover every attempt.
         """
         json_schema = schema.model_json_schema()
-        if self._client.supports_response_schema:
+        if self.client.supports_response_schema:
             instruction = prompt
             response_schema = {"name": schema.__name__, "schema": strict_schema(json_schema)}
         else:
@@ -126,15 +165,18 @@ def strict_schema(schema: dict) -> dict:
     def walk(node: object) -> object:
         if isinstance(node, dict):
             node = {key: walk(value) for key, value in node.items()}
-            if node.get("type") == "object" and "properties" in node:
+            properties = node.get("properties")
+            if node.get("type") == "object" and isinstance(properties, dict):
                 node["additionalProperties"] = False
-                node["required"] = list(node["properties"])
+                node["required"] = list(properties)
             return node
         if isinstance(node, list):
             return [walk(item) for item in node]
         return node
 
-    return walk(schema)  # type: ignore[return-value]
+    result = walk(schema)
+    assert isinstance(result, dict)
+    return result
 
 
 def _extract_json(text: str) -> object:

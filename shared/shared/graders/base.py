@@ -1,8 +1,29 @@
-from dataclasses import dataclass, field
-from typing import Any
+"""Shared grade types and a provider-independent structured judge contract."""
 
-from openai import AsyncOpenAI
+import asyncio
+from collections.abc import Awaitable
+from dataclasses import dataclass, field
+from typing import Any, Protocol, TypeVar, cast
+
 from pydantic import BaseModel, Field
+
+T = TypeVar("T", bound=BaseModel)
+R = TypeVar("R")
+
+
+async def gather_judgments(*calls: Awaitable[R]) -> list[R]:
+    """Finish every submitted call before raising, so failed batches retain all spend."""
+    results = await asyncio.gather(*calls, return_exceptions=True)
+    for result in results:
+        if isinstance(result, BaseException):
+            raise result
+    return cast(list[R], results)
+
+
+class StructuredJudge(Protocol):
+    async def complete_json(
+        self, prompt: str, schema: type[T], *, system: str | None = None
+    ) -> tuple[T, Any]: ...
 
 
 @dataclass
@@ -17,12 +38,10 @@ class BaseGradeOutput(BaseModel):
 
 
 class BaseLLMGrader:
-    def __init__(
-        self,
-        model: str = "gpt-5.4",
-        temperature: float = 0.0,
-        api_key: str | None = None,
-    ):
-        self.model = model
-        self.temperature = temperature
-        self.client = AsyncOpenAI(api_key=api_key)
+    def __init__(self, judge: StructuredJudge):
+        self.judge = judge
+
+    async def parse(self, system: str, prompt: str, schema: type[T]) -> T:
+        """Use the run's judge; errors propagate to the resumable task runner."""
+        parsed, _ = await self.judge.complete_json(prompt, schema, system=system)
+        return parsed

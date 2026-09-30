@@ -29,9 +29,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
-from typing import Any
+from typing import Any, Protocol
 
-from harness.llm.judge import Judge
+from harness.llm.judge import Judge, track_judge_usage
 from harness.suites.base import Grade, Suite, Task
 from harness.systems import System, SystemSpec
 
@@ -58,6 +58,7 @@ def read_json(path: Path) -> Any:
 def config_hash(spec: SystemSpec, suite: Suite, judge_model: str) -> str:
     """Hash every input that changes results into a short, stable run id."""
     payload = {
+        "runner_version": 2,
         "system": spec.to_dict(),
         "suite": suite.name,
         "suite_revision": getattr(suite, "revision", ""),
@@ -83,19 +84,24 @@ class TaskOutcome:
     result: dict[str, Any] | None
     grade: Grade | None
     error: str | None
+    judge_cost_usd: float = 0.0
+    judge_cost_known: bool = True
 
 
 def summarize(suite: Suite, outcomes: list[TaskOutcome], config: dict[str, Any]) -> dict[str, Any]:
     """Aggregate grades and costs; failed tasks count as zero in ``*_failed_as_zero``."""
     graded = [o for o in outcomes if o.grade is not None]
     grades = [o.grade for o in graded if o.grade is not None]
-    results = [o.result for o in graded if o.result is not None]
+    results = [o.result for o in outcomes if o.result is not None]
     total = len(outcomes)
     metrics = suite.aggregate(grades) if grades else {}
     primary = suite.primary_metric
     primary_sum = sum(g.scores.get(primary, 0.0) for g in grades)
-    cost_known = all(r.get("cost_known", False) for r in results)
-    judge_cost_known = all(g.details.get("judge_cost_known", True) for g in grades)
+    cost_known = len(results) == total and all(r.get("cost_known", False) for r in results)
+    judge_cost_known = all(
+        o.judge_cost_known and (o.grade is None or o.grade.details.get("judge_cost_known", True))
+        for o in outcomes
+    )
     system_cost = sum(r.get("total_cost_usd", 0.0) for r in results)
     return {
         "system": config["system"]["name"],
@@ -110,11 +116,16 @@ def summarize(suite: Suite, outcomes: list[TaskOutcome], config: dict[str, Any])
         f"{primary}_failed_as_zero": primary_sum / total if total else 0.0,
         "cost": {
             "system_usd": system_cost,
-            "system_usd_per_task": system_cost / len(results) if results else 0.0,
+            "system_usd_per_task": system_cost / total if total else 0.0,
             "model_usd": sum(r.get("model_cost_usd", 0.0) for r in results),
             "search_usd": sum(r.get("search_cost_usd", 0.0) for r in results),
             "system_cost_known": cost_known,
-            "judge_usd": sum(g.judge_cost_usd for g in grades),
+            "judge_usd": sum(
+                o.judge_cost_usd
+                if o.judge_cost_usd
+                else (o.grade.judge_cost_usd if o.grade else 0.0)
+                for o in outcomes
+            ),
             "judge_cost_known": judge_cost_known,
         },
         "mean_latency_s": mean(r.get("latency_ms", 0.0) for r in results) / 1000
@@ -124,6 +135,11 @@ def summarize(suite: Suite, outcomes: list[TaskOutcome], config: dict[str, Any])
         "stop_reasons": dict(Counter(r.get("stop_reason", "single_step") for r in results)),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+class RunnableSystem(Protocol):
+    async def execute(self, task: Task, suite: Suite) -> dict[str, Any]: ...
+    async def close(self) -> None: ...
 
 
 class Runner:
@@ -139,8 +155,12 @@ class Runner:
         run_suffix: str | None = None,
         concurrency: int = 5,
         max_attempts: int = 2,
-        system: System | None = None,
+        system: RunnableSystem | None = None,
     ) -> None:
+        if concurrency < 1 or max_attempts < 1:
+            raise ValueError("concurrency and max_attempts must be positive")
+        if spec.kind not in suite.system_kinds:
+            raise ValueError(f"{suite.name} requires {suite.system_kinds}; got {spec.kind}")
         self.spec = spec
         self.suite = suite
         self.judge = judge
@@ -161,6 +181,9 @@ class Runner:
 
     async def run(self, tasks: list[Task], *, on_done=None) -> dict[str, Any]:
         """Evaluate ``tasks`` (resuming prior work) and write ``summary.json``."""
+        ids = [safe_name(task.id) for task in tasks]
+        if len(ids) != len(set(ids)):
+            raise ValueError("task IDs collide after path normalization")
         config_path = self.run_dir / "config.json"
         if config_path.exists():
             if read_json(config_path)["system"] != self.config["system"]:
@@ -188,8 +211,18 @@ class Runner:
         write_json(self.run_dir / "summary.json", summary)
         return summary
 
-    async def _run_task(self, system: System, task: Task) -> TaskOutcome:
+    async def _run_task(self, system: RunnableSystem, task: Task) -> TaskOutcome:
         directory = self.task_dir(task)
+        cost_path = directory / "cost.json"
+        costs: dict[str, Any] = (
+            read_json(cost_path)
+            if cost_path.exists()
+            else {
+                "judge_cost_usd": 0.0,
+                "judge_cost_known": True,
+                "system_cost_known": True,
+            }
+        )
         grade_path, result_path, error_path = (
             directory / "grade.json",
             directory / "result.json",
@@ -200,7 +233,14 @@ class Runner:
             grade = Grade(
                 stored["scores"], stored.get("details", {}), stored.get("judge_cost_usd", 0.0)
             )
-            return TaskOutcome(task, read_json(result_path), grade, None)
+            return TaskOutcome(
+                task,
+                read_json(result_path),
+                grade,
+                None,
+                costs["judge_cost_usd"],
+                costs["judge_cost_known"],
+            )
 
         prompt = self.suite.prompt(task)
         result = read_json(result_path) if result_path.exists() else None
@@ -208,16 +248,34 @@ class Runner:
         for attempt in range(1, self.max_attempts + 1):
             try:
                 if result is None:
-                    result = await system.answer(prompt)
+                    try:
+                        result = await system.execute(task, self.suite)
+                    except Exception:
+                        costs["system_cost_known"] = False
+                        write_json(cost_path, costs)
+                        raise
                     result = {"task_id": task.id, "prompt": prompt, "attempt": attempt, **result}
+                    result["cost_known"] = (
+                        result.get("cost_known", False) and costs["system_cost_known"]
+                    )
                     write_json(result_path, result)
-                grade = await self.suite.grade(task, result["answer"], self.judge)
+                with track_judge_usage() as spend:
+                    try:
+                        grade = await self.suite.grade_result(task, result, self.judge)
+                    finally:
+                        costs["judge_cost_usd"] += spend.total_usd
+                        costs["judge_cost_known"] &= spend.known
+                        write_json(cost_path, costs)
             except Exception as error:  # recorded per task; the run continues
                 last_error = "".join(traceback.format_exception(error))
                 write_json(
                     error_path, {"task_id": task.id, "attempt": attempt, "error": last_error}
                 )
                 continue
+            grade.judge_cost_usd = costs["judge_cost_usd"] or grade.judge_cost_usd
+            grade.details["judge_cost_known"] = costs["judge_cost_known"] and grade.details.get(
+                "judge_cost_known", True
+            )
             write_json(
                 grade_path,
                 {
@@ -228,8 +286,12 @@ class Runner:
                 },
             )
             error_path.unlink(missing_ok=True)
-            return TaskOutcome(task, result, grade, None)
-        return TaskOutcome(task, result, None, last_error)
+            return TaskOutcome(
+                task, result, grade, None, costs["judge_cost_usd"], costs["judge_cost_known"]
+            )
+        return TaskOutcome(
+            task, result, None, last_error, costs["judge_cost_usd"], costs["judge_cost_known"]
+        )
 
 
 def load_summary_outcomes(run_dir: Path, suite: Suite, tasks: list[Task]) -> list[TaskOutcome]:
@@ -246,5 +308,15 @@ def load_summary_outcomes(run_dir: Path, suite: Suite, tasks: list[Task]) -> lis
             grade = Grade(
                 stored["scores"], stored.get("details", {}), stored.get("judge_cost_usd", 0.0)
             )
-        outcomes.append(TaskOutcome(task, result, grade, None if grade else "not graded"))
+        costs = read_json(directory / "cost.json") if (directory / "cost.json").exists() else {}
+        outcomes.append(
+            TaskOutcome(
+                task,
+                result,
+                grade,
+                None if grade else "not graded",
+                costs.get("judge_cost_usd", 0.0),
+                costs.get("judge_cost_known", True),
+            )
+        )
     return outcomes

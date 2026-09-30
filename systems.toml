@@ -1,66 +1,4 @@
-# Systems catalog for the evaluation harness.
-#
-# A *searcher* is one provider endpoint with fixed request settings. A *system* is
-# what gets evaluated:
-#   kind = "scout"  — the Scout research loop: a model plus either a searcher
-#                     (caller-owned search tool) or the model provider's own
-#                     hosted web search (`hosted_web_search`).
-#   kind = "rag"    — single-step RAG: one search, one tools-free synthesis.
-#
-# Scout systems share every setting in [defaults.scout] and differ only in their
-# search backend, so their scores are comparable. Override the model of any scout
-# or rag system at run time with `bench run --model <provider>/<model>`.
-
-# --- Search backends ------------------------------------------------------------
-
-[searchers.exa-auto]
-provider = "exa"
-type = "auto"
-contents = { highlights = true }
-
-[searchers.exa-fast]
-provider = "exa"
-type = "fast"
-contents = { highlights = true }
-
-[searchers.exa-instant]
-provider = "exa"
-type = "instant"
-contents = { highlights = true }
-
-[searchers.brave-llm-context]
-provider = "brave"
-search_type = "llm_context"
-
-[searchers.brave-web]
-provider = "brave"
-search_type = "web"
-
-[searchers.parallel-advanced]
-provider = "parallel"
-mode = "advanced"
-
-[searchers.parallel-basic]
-provider = "parallel"
-mode = "basic"
-
-[searchers.parallel-fast]
-provider = "parallel"
-mode = "fast"
-
-[searchers.parallel-turbo]
-provider = "parallel"
-mode = "turbo"
-
-[searchers.perplexity]
-provider = "perplexity"
-search_type = "web"
-
-[searchers.perplexity-fast]
-provider = "perplexity"
-search_type = "fast"
-
-# --- Shared defaults ---------------------------------------------------------------
+# Search backends and shared execution defaults. Provider options live here once.
 
 [defaults.scout]
 model = "openai/gpt-5.6-luna"
@@ -75,37 +13,174 @@ num_results = 10
 model = "openai/gpt-5.6-luna"
 num_results = 10
 
-# --- Scout over single-step search APIs ----------------------------------------------
+[defaults.search]
+num_results = 10
 
-[systems.scout-exa-auto]
-kind = "scout"
-searcher = "exa-auto"
+[defaults.extract-rag]
+model = "openai/gpt-5.6-luna"
+num_results = 1
 
-[systems.scout-exa-fast]
-kind = "scout"
-searcher = "exa-fast"
+[searchers.exa-instant-highlights]
+provider = "exa"
+type = "instant"
+contents = { highlights = true }
 
-[systems.scout-exa-instant]
-kind = "scout"
-searcher = "exa-instant"
+[searchers.exa-fast-highlights]
+provider = "exa"
+type = "fast"
+contents = { highlights = true }
 
-[systems.scout-brave]
-kind = "scout"
-searcher = "brave-llm-context"
+[searchers.exa-auto-highlights]
+provider = "exa"
+type = "auto"
+contents = { highlights = true }
 
-[systems.scout-parallel-advanced]
+[searchers.perplexity-web]
+provider = "perplexity"
+search_type = "web"
+
+[searchers.perplexity-fast]
+provider = "perplexity"
+search_type = "fast"
+
+[searchers.parallel-turbo]
+provider = "parallel"
+mode = "turbo"
+
+[searchers.parallel-fast]
+provider = "parallel"
+mode = "fast"
+
+[searchers.parallel-basic]
+provider = "parallel"
+mode = "basic"
+
+[searchers.parallel-advanced]
+provider = "parallel"
+mode = "advanced"
+
+[searchers.brave-llm-context]
+provider = "brave"
+
+[systems.scout-exa-instant-highlights]
 kind = "scout"
-searcher = "parallel-advanced"
+searcher = "exa-instant-highlights"
+
+[systems.rag-exa-instant-highlights]
+kind = "rag"
+searcher = "exa-instant-highlights"
+
+[systems.search-exa-instant-highlights]
+kind = "search"
+searcher = "exa-instant-highlights"
+
+[systems.scout-exa-fast-highlights]
+kind = "scout"
+searcher = "exa-fast-highlights"
+
+[systems.rag-exa-fast-highlights]
+kind = "rag"
+searcher = "exa-fast-highlights"
+
+[systems.search-exa-fast-highlights]
+kind = "search"
+searcher = "exa-fast-highlights"
+
+[systems.scout-exa-auto-highlights]
+kind = "scout"
+searcher = "exa-auto-highlights"
+
+[systems.rag-exa-auto-highlights]
+kind = "rag"
+searcher = "exa-auto-highlights"
+
+[systems.search-exa-auto-highlights]
+kind = "search"
+searcher = "exa-auto-highlights"
+
+[systems.scout-perplexity-web]
+kind = "scout"
+searcher = "perplexity-web"
+
+[systems.rag-perplexity-web]
+kind = "rag"
+searcher = "perplexity-web"
+
+[systems.search-perplexity-web]
+kind = "search"
+searcher = "perplexity-web"
+
+[systems.scout-perplexity-fast]
+kind = "scout"
+searcher = "perplexity-fast"
+
+[systems.rag-perplexity-fast]
+kind = "rag"
+searcher = "perplexity-fast"
+
+[systems.search-perplexity-fast]
+kind = "search"
+searcher = "perplexity-fast"
+
+[systems.scout-parallel-turbo]
+kind = "scout"
+searcher = "parallel-turbo"
+
+[systems.rag-parallel-turbo]
+kind = "rag"
+searcher = "parallel-turbo"
+
+[systems.search-parallel-turbo]
+kind = "search"
+searcher = "parallel-turbo"
 
 [systems.scout-parallel-fast]
 kind = "scout"
 searcher = "parallel-fast"
 
-[systems.scout-perplexity]
-kind = "scout"
-searcher = "perplexity"
+[systems.rag-parallel-fast]
+kind = "rag"
+searcher = "parallel-fast"
 
-# --- Scout over provider-hosted web search -------------------------------------------
+[systems.search-parallel-fast]
+kind = "search"
+searcher = "parallel-fast"
+
+[systems.scout-parallel-basic]
+kind = "scout"
+searcher = "parallel-basic"
+
+[systems.rag-parallel-basic]
+kind = "rag"
+searcher = "parallel-basic"
+
+[systems.search-parallel-basic]
+kind = "search"
+searcher = "parallel-basic"
+
+[systems.scout-parallel-advanced]
+kind = "scout"
+searcher = "parallel-advanced"
+
+[systems.rag-parallel-advanced]
+kind = "rag"
+searcher = "parallel-advanced"
+
+[systems.search-parallel-advanced]
+kind = "search"
+searcher = "parallel-advanced"
+
+[systems.scout-brave-llm-context]
+kind = "scout"
+searcher = "brave-llm-context"
+
+[systems.rag-brave-llm-context]
+kind = "rag"
+searcher = "brave-llm-context"
+
+[systems.search-brave-llm-context]
+kind = "search"
+searcher = "brave-llm-context"
 
 [systems.openai-native-search]
 kind = "scout"
@@ -122,24 +197,87 @@ kind = "scout"
 model = "anthropic/claude-sonnet-5"
 hosted_web_search = { max_uses = 15 }
 
-# --- Single-step RAG baselines ---------------------------------------------------------
+# Task-specific extraction/search settings used by legacy entry points.
+[searchers.exa-people]
+provider = "exa"
+category = "people"
+[searchers.exa-company]
+provider = "exa"
+category = "company"
+[searchers.exa-publication]
+provider = "exa"
+category = "publication"
+include_text = true
+[searchers.brave-people]
+provider = "brave"
+site_filter = "linkedin.com/in"
+[searchers.parallel-people]
+provider = "parallel"
+source_policy = { include_domains = ["linkedin.com"] }
+[searchers.exa-webcode]
+provider = "exa"
+type = "fast"
+max_age_hours = 0
+[searchers.exa-extract]
+provider = "exa"
+extract_mode = "highlights"
+max_characters = 4000
+max_age_hours = 0
+[searchers.parallel-extract]
+provider = "parallel"
+excerpt_max_chars = 4000
+[searchers.tavily]
+provider = "tavily"
+chunks_per_source = 5
+[searchers.claude-extract]
+provider = "claude"
+tool_version = "web_fetch_20260209"
+model = "claude-sonnet-4-6"
 
-[systems.rag-exa-auto]
-kind = "rag"
-searcher = "exa-auto"
+[systems.search-exa-people]
+kind = "search"
+searcher = "exa-people"
 
-[systems.rag-exa-fast]
-kind = "rag"
-searcher = "exa-fast"
+[systems.search-exa-company]
+kind = "search"
+searcher = "exa-company"
 
-[systems.rag-brave]
-kind = "rag"
-searcher = "brave-llm-context"
+[systems.search-exa-publication]
+kind = "search"
+searcher = "exa-publication"
 
-[systems.rag-parallel-advanced]
-kind = "rag"
-searcher = "parallel-advanced"
+[systems.search-brave-people]
+kind = "search"
+searcher = "brave-people"
 
-[systems.rag-perplexity]
+[systems.search-parallel-people]
+kind = "search"
+searcher = "parallel-people"
+
+[systems.rag-exa-company]
 kind = "rag"
-searcher = "perplexity"
+searcher = "exa-company"
+
+[systems.rag-exa-webcode]
+kind = "rag"
+searcher = "exa-webcode"
+
+[systems.rag-tavily]
+kind = "rag"
+searcher = "tavily"
+
+[systems.extract-rag-exa-extract]
+kind = "extract-rag"
+searcher = "exa-extract"
+
+[systems.extract-rag-parallel-extract]
+kind = "extract-rag"
+searcher = "parallel-extract"
+
+[systems.extract-rag-tavily]
+kind = "extract-rag"
+searcher = "tavily"
+
+[systems.extract-rag-claude-extract]
+kind = "extract-rag"
+searcher = "claude-extract"

@@ -48,6 +48,8 @@ class Suite(ABC):
     # Identifies the pinned data and grading contract (source pin + grader version).
     # Bump it whenever the data pin, a prompt, or grading logic changes.
     revision: str = ""
+    system_kinds = ("scout", "rag")
+    requires_judge = True
 
     @abstractmethod
     def load(self) -> list[Task]:
@@ -57,13 +59,15 @@ class Suite(ABC):
         """Return the exact text sent to the system under test."""
         return task.problem
 
-    @abstractmethod
     async def grade(self, task: Task, response: str, judge: Judge) -> Grade:
         """Grade one final answer against the task's gold reference."""
+        raise NotImplementedError(f"{self.name} requires the full result")
+
+    async def grade_result(self, task: Task, result: dict[str, Any], judge: Judge) -> Grade:
+        """Grade answer-only suites; retrieval suites override to inspect ranked results."""
+        return await self.grade(task, result["answer"], judge)
 
     def aggregate(self, grades: list[Grade]) -> dict[str, float]:
         """Average every score key across grades; suites override for set metrics."""
         keys = sorted({key for grade in grades for key in grade.scores})
-        return {
-            key: mean(grade.scores[key] for grade in grades if key in grade.scores) for key in keys
-        }
+        return {key: mean(grade.scores.get(key, 0.0) for grade in grades) for key in keys}

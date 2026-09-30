@@ -1,17 +1,10 @@
-import asyncio
-import logging
 from dataclasses import dataclass
 from typing import Literal
 
 import tiktoken
 from pydantic import BaseModel, Field, model_validator
 
-from .base import BaseLLMGrader, GradeResult
-
-logger = logging.getLogger(__name__)
-
-_TIKTOKEN_ENC = tiktoken.get_encoding("o200k_base")
-
+from .base import BaseLLMGrader, GradeResult, gather_judgments
 
 RAG_GRADING_SYSTEM = """You are evaluating if an extracted answer matches the expected answer for a company fact query.
 This is BINARY - score 1 if the answer is correct, score 0 if it's wrong.
@@ -47,44 +40,20 @@ class RAGGradeResult(BaseModel):
 
 class RAGGrader(BaseLLMGrader):
     async def grade(
-        self,
-        query: str,
-        expected_answer: str,
-        actual_answer: str,
-        bucket: str = "",
+        self, query: str, expected_answer: str, actual_answer: str, bucket: str = ""
     ) -> GradeResult:
-        if not actual_answer or actual_answer.lower() in [
-            "unknown",
-            "not found",
-            "n/a",
-        ]:
+        """Grade company facts with the benchmark's numeric tolerance and text rules."""
+        if not actual_answer or actual_answer.lower() in ("unknown", "not found", "n/a"):
             return GradeResult(scores={"is_correct": 0.0})
-
-        try:
-            response = await self.client.beta.chat.completions.parse(
-                model=self.model,
-                temperature=self.temperature,
-                messages=[
-                    {"role": "system", "content": RAG_GRADING_SYSTEM},
-                    {
-                        "role": "user",
-                        "content": RAG_GRADING_USER.format(
-                            query=query,
-                            expected=expected_answer,
-                            actual=actual_answer,
-                        ),
-                    },
-                ],
-                response_format=RAGGradeResult,
-            )
-            parsed = response.choices[0].message.parsed
-            assert parsed is not None
-            return GradeResult(
-                scores={"is_correct": 1.0 if parsed.score >= 0.5 else 0.0}
-            )
-        except Exception as e:
-            logger.warning(f"RAG grading failed: {e}")
-            return GradeResult(scores={"is_correct": 0.0})
+        parsed = await self.parse(
+            RAG_GRADING_SYSTEM,
+            RAG_GRADING_USER.format(query=query, expected=expected_answer, actual=actual_answer),
+            RAGGradeResult,
+        )
+        return GradeResult(
+            scores={"is_correct": float(parsed.score >= 0.5)},
+            details={"explanation": parsed.explanation},
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -233,14 +202,6 @@ class GroundednessResult(BaseModel):
 
 
 class GroundedRAGGrader(BaseLLMGrader):
-    def __init__(
-        self,
-        model: str = "gpt-5.4",
-        temperature: float = 0.0,
-        api_key: str | None = None,
-    ):
-        super().__init__(model=model, temperature=temperature, api_key=api_key)
-
     async def grade(
         self,
         question: str,
@@ -253,21 +214,22 @@ class GroundedRAGGrader(BaseLLMGrader):
         if not expected_answer:
             return GradeResult(scores={"score": 0.0, "grounded": 0.0})
 
-        (corr_result, grnd_result) = await asyncio.gather(
+        corr_result, grnd_result = await gather_judgments(
             self._call_correctness(question, expected_answer, predicted_answer),
             self._call_groundedness(question, expected_answer, citations),
         )
+        assert isinstance(corr_result, CorrectnessResult)
+        assert isinstance(grnd_result, GroundednessResult)
 
         score = 1.0 if corr_result.correctness == "CORRECT" else 0.0
         grounded = 0.0 if grnd_result.groundedness == "UNGROUNDED" else 1.0
 
         matching_urls = self._extract_source_urls(grnd_result.source_indices, citations)
         num_citations = len(citations)
-        citation_precision = (
-            float(len(matching_urls)) / num_citations if num_citations > 0 else 0.0
-        )
+        citation_precision = float(len(matching_urls)) / num_citations if num_citations > 0 else 0.0
 
-        citation_token_counts = [len(_TIKTOKEN_ENC.encode(c.text)) for c in citations]
+        encoding = tiktoken.get_encoding("o200k_base")
+        citation_token_counts = [len(encoding.encode(c.text)) for c in citations]
         avg_citation_tokens = (
             sum(citation_token_counts) / len(citation_token_counts)
             if citation_token_counts
@@ -301,42 +263,21 @@ class GroundedRAGGrader(BaseLLMGrader):
             f"Gold target: {expected_answer}\n\n"
             f"Predicted answer: {predicted_answer}"
         )
-        response = await self.client.beta.chat.completions.parse(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": CORRECTNESS_SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
-            response_format=CorrectnessResult,
-        )
-        parsed = response.choices[0].message.parsed
-        assert parsed is not None
-        return parsed
+        return await self.parse(CORRECTNESS_SYSTEM_PROMPT, user_content, CorrectnessResult)
 
     async def _call_groundedness(
         self, question: str, expected_answer: str, citations: list[Citation]
     ) -> GroundednessResult:
-        parts = []
-        for i, c in enumerate(citations, start=1):
-            parts.append(f"[{i}] URL: {c.url}\nTitle: {c.title}\n{c.text}")
+        parts = [
+            f"[{i}] URL: {c.url}\nTitle: {c.title}\n{c.text}"
+            for i, c in enumerate(citations, start=1)
+        ]
         contents = "\n\n---\n\n".join(parts)
-
-        user_content = (
-            f"Question: {question}\n\n"
-            f"Retrieved citations:\n{contents}\n\n"
+        prompt = (
+            f"Question: {question}\n\nRetrieved citations:\n{contents}\n\n"
             f"Gold target answer: {expected_answer}"
         )
-        response = await self.client.beta.chat.completions.parse(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": GROUNDEDNESS_SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
-            response_format=GroundednessResult,
-        )
-        parsed = response.choices[0].message.parsed
-        assert parsed is not None
-        return parsed
+        return await self.parse(GROUNDEDNESS_SYSTEM_PROMPT, prompt, GroundednessResult)
 
     @staticmethod
     def _extract_source_urls(source_indices: list[int], citations: list[Citation]) -> list[str]:

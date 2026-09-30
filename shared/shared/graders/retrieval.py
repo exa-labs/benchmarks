@@ -1,13 +1,8 @@
-import logging
-
 from pydantic import BaseModel, Field
 
 from ..searchers import SearchResult
 from .base import BaseLLMGrader, GradeResult
 from .utils import url_matches
-
-logger = logging.getLogger(__name__)
-
 
 RETRIEVAL_GRADING_SYSTEM = """You are evaluating if a search result matches a company search query.
 This is BINARY - score 1 if the result matches, score 0 if it doesn't.
@@ -54,40 +49,23 @@ class RetrievalGrader(BaseLLMGrader):
         gold_homepage: str | None = None,
         constraints: dict | None = None,
     ) -> GradeResult:
+        """Match a known homepage deterministically, or judge company constraints."""
         if gold_homepage:
-            is_match = url_matches(result.url, gold_homepage)
-            return GradeResult(scores={"is_match": 1.0 if is_match else 0.0})
-
-        if constraints:
-            return await self._grade_with_llm(query, result, constraints)
-
-        return GradeResult(scores={"is_match": 0.0})
-
-    async def _grade_with_llm(
-        self, query: str, result: SearchResult, constraints: dict
-    ) -> GradeResult:
-        try:
-            response = await self.client.beta.chat.completions.parse(
-                model=self.model,
-                temperature=self.temperature,
-                messages=[
-                    {"role": "system", "content": RETRIEVAL_GRADING_SYSTEM},
-                    {
-                        "role": "user",
-                        "content": RETRIEVAL_GRADING_USER.format(
-                            query=query,
-                            constraints=constraints,
-                            url=result.url,
-                            title=result.title,
-                            text=result.content[:30000] if result.content else "(no content)",
-                        ),
-                    },
-                ],
-                response_format=RetrievalGradeResult,
-            )
-            parsed = response.choices[0].message.parsed
-            assert parsed is not None
-            return GradeResult(scores={"is_match": 1.0 if parsed.score >= 0.5 else 0.0})
-        except Exception as e:
-            logger.warning(f"Retrieval grading failed: {e}")
+            return GradeResult(scores={"is_match": float(url_matches(result.url, gold_homepage))})
+        if not constraints:
             return GradeResult(scores={"is_match": 0.0})
+        parsed = await self.parse(
+            RETRIEVAL_GRADING_SYSTEM,
+            RETRIEVAL_GRADING_USER.format(
+                query=query,
+                constraints=constraints,
+                url=result.url,
+                title=result.title,
+                text=result.content[:30000] or "(no content)",
+            ),
+            RetrievalGradeResult,
+        )
+        return GradeResult(
+            scores={"is_match": float(parsed.score >= 0.5)},
+            details={"explanation": parsed.explanation},
+        )
