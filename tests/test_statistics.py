@@ -2,7 +2,7 @@
 
 import pytest
 
-from harness.statistics import MeanInterval, bootstrap_mean
+from harness.statistics import MeanInterval, bootstrap_mean, bootstrap_ratio
 
 
 def test_binary_mean_matches_exact_binomial_percentiles():
@@ -49,3 +49,17 @@ def test_invalid_confidence_levels_are_rejected(level):
 def test_at_least_two_resamples_are_required():
     with pytest.raises(ValueError, match="n_resamples"):
         bootstrap_mean([0.0, 1.0], n_resamples=1)
+
+
+def test_ratio_bootstrap_weights_counts_and_resamples_pairs():
+    interval = bootstrap_ratio([1, 0], [1, 9])
+    assert interval.estimate == 0.1  # entity weighted, not the 0.5 mean task precision
+    assert interval.low == 0.0 and interval.high == 1.0
+    assert interval == bootstrap_ratio([2, 0], [2, 18])
+    assert bootstrap_ratio([1, 9], [1, 9]) == MeanInterval(1.0, 1.0, 1.0, 2)
+
+
+def test_ratio_bootstrap_handles_empty_and_zero_entity_samples():
+    assert bootstrap_ratio([], []) == MeanInterval(None, None, None, 0)
+    assert bootstrap_ratio([0], [0]) == MeanInterval(0.0, None, None, 1)
+    assert bootstrap_ratio([0, 0], [0, 0]) == MeanInterval(0.0, 0.0, 0.0, 2)

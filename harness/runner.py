@@ -31,12 +31,14 @@ from pathlib import Path
 from statistics import mean
 from typing import Any, Protocol
 
+from harness.agents import AgentRequestError
 from harness.llm.judge import Judge, track_judge_usage
 from harness.statistics import (
     BOOTSTRAP_RESAMPLES,
     BOOTSTRAP_SEED,
     CONFIDENCE_LEVEL,
     bootstrap_mean,
+    bootstrap_ratio,
 )
 from harness.suite import Grade, Suite, Task
 from harness.systems import System, SystemSpec
@@ -99,16 +101,28 @@ def summarize(suite: Suite, outcomes: list[TaskOutcome], config: dict[str, Any])
     """Aggregate grades and costs; failed tasks count as zero in ``*_failed_as_zero``."""
     graded = [o for o in outcomes if o.grade is not None]
     grades = [o.grade for o in graded if o.grade is not None]
+    for outcome in outcomes:
+        if outcome.grade is None:
+            scores = suite.failure_scores(outcome.result)
+            if scores is not None:
+                grades.append(Grade(scores))
     results = [o.result for o in outcomes if o.result is not None]
     total = len(outcomes)
     metrics = suite.aggregate(grades) if grades else {}
     primary = suite.primary_metric
     primary_sum = sum(g.scores.get(primary, 0.0) for g in grades)
-    # All registered suites aggregate per-task means. Failures are excluded
-    # from ordinary metrics and included as zero in the primary companion metric.
+    # Ordinary metrics average task scores; suites can opt failures into them.
+    # Ratio metrics below resample paired task counts instead of averaging ratios.
     intervals = {
         key: asdict(bootstrap_mean([g.scores.get(key, 0.0) for g in grades])) for key in metrics
     }
+    for key, (numerator, denominator) in suite.ratio_metrics.items():
+        interval = bootstrap_ratio(
+            [g.scores.get(numerator, 0.0) for g in grades],
+            [g.scores.get(denominator, 0.0) for g in grades],
+        )
+        metrics[key] = interval.estimate or 0.0
+        intervals[key] = asdict(interval)
     intervals[f"{primary}_failed_as_zero"] = asdict(
         bootstrap_mean([o.grade.scores.get(primary, 0.0) if o.grade else 0.0 for o in outcomes])
     )
@@ -125,6 +139,7 @@ def summarize(suite: Suite, outcomes: list[TaskOutcome], config: dict[str, Any])
         "judge_model": config["judge_model"],
         "primary_metric": primary,
         "tasks": total,
+        "task_ids": [o.task.id for o in outcomes],
         "graded": len(graded),
         "failed": total - len(graded),
         "metrics": metrics,
@@ -155,6 +170,8 @@ def summarize(suite: Suite, outcomes: list[TaskOutcome], config: dict[str, Any])
         if results
         else 0.0,
         "mean_searches": mean(r.get("num_searches", 1) for r in results) if results else 0.0,
+        "search_count_known": len(results) == total
+        and all(r.get("search_count_known", True) for r in results),
         "stop_reasons": dict(Counter(r.get("stop_reason", "single_step") for r in results)),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -216,7 +233,7 @@ class Runner:
                 config_path, {**self.config, "created_at": datetime.now(timezone.utc).isoformat()}
             )
 
-        system = self._system or System(self.spec)
+        system = self._system or System(self.spec, state_root=self.run_dir / "agent_runs")
         semaphore = asyncio.Semaphore(self.concurrency)
 
         async def bounded(task: Task) -> TaskOutcome:
@@ -294,6 +311,8 @@ class Runner:
                 write_json(
                     error_path, {"task_id": task.id, "attempt": attempt, "error": last_error}
                 )
+                if isinstance(error, AgentRequestError):
+                    break
                 continue
             grade.judge_cost_usd = costs["judge_cost_usd"] or grade.judge_cost_usd
             grade.details["judge_cost_known"] = costs["judge_cost_known"] and grade.details.get(

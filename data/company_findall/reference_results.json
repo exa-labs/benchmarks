@@ -1,0 +1,95 @@
+{
+  "dataset": "company-findall-synthetic-v1",
+  "judge_model": "openai/gpt-6-luna",
+  "grading_max_rows": 25,
+  "grading_row_selection": "first",
+  "dataset_queries": 300,
+  "reported_regrade_queries": 298,
+  "source": "Synthetic holistic regrade aggregates supplied in the release handoff",
+  "limitations": [
+    "Historical evaluation graded only the first 25 returned rows; the public evaluator grades all returned entities.",
+    "Aggregate-only historical results; no per-task artifacts or confidence intervals supplied.",
+    "Source reports 298 regrade queries and 287 degraded errors; exact per-arm denominators and failure treatment cannot be reconstructed.",
+    "Costs per task are approximate historical provider costs, excluding the judge, not current API prices.",
+    "normalized_num_passed depends on this exact 11-system fleet."
+  ],
+  "results": [
+    {
+      "system": "exa-agent-xhigh",
+      "normalized_num_passed": 0.841,
+      "num_passed": 16.47,
+      "pass_rate": 0.871,
+      "approx_system_usd_per_task": 0.94
+    },
+    {
+      "system": "exa-agent-auto",
+      "normalized_num_passed": 0.849,
+      "num_passed": 16.64,
+      "pass_rate": 0.853,
+      "approx_system_usd_per_task": 0.94
+    },
+    {
+      "system": "exa-agent-high",
+      "normalized_num_passed": 0.786,
+      "num_passed": 15.483,
+      "pass_rate": 0.875,
+      "approx_system_usd_per_task": 0.47
+    },
+    {
+      "system": "exa-agent-medium",
+      "normalized_num_passed": 0.448,
+      "num_passed": 9.13,
+      "pass_rate": 0.671,
+      "approx_system_usd_per_task": 0.094
+    },
+    {
+      "system": "exa-agent-low",
+      "normalized_num_passed": 0.389,
+      "num_passed": 7.553,
+      "pass_rate": 0.775,
+      "approx_system_usd_per_task": 0.023
+    },
+    {
+      "system": "exa-agent-base",
+      "normalized_num_passed": 0.386,
+      "num_passed": 7.643,
+      "pass_rate": 0.768,
+      "approx_system_usd_per_task": 0.048
+    },
+    {
+      "system": "exa-agent-minimal",
+      "normalized_num_passed": 0.396,
+      "num_passed": 7.69,
+      "pass_rate": 0.728,
+      "approx_system_usd_per_task": 0.011
+    },
+    {
+      "system": "parallel-task-ultra",
+      "normalized_num_passed": 0.643,
+      "num_passed": 14.0,
+      "pass_rate": 0.759,
+      "approx_system_usd_per_task": 0.27
+    },
+    {
+      "system": "parallel-task-core",
+      "normalized_num_passed": 0.394,
+      "num_passed": 8.91,
+      "pass_rate": 0.691,
+      "approx_system_usd_per_task": 0.025
+    },
+    {
+      "system": "parallel-task-base",
+      "normalized_num_passed": 0.259,
+      "num_passed": 5.737,
+      "pass_rate": 0.635,
+      "approx_system_usd_per_task": 0.005
+    },
+    {
+      "system": "perplexity-agent-pro",
+      "normalized_num_passed": 0.264,
+      "num_passed": 5.517,
+      "pass_rate": 0.689,
+      "approx_system_usd_per_task": 0.01
+    }
+  ]
+}

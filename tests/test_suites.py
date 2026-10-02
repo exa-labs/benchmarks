@@ -58,6 +58,7 @@ class FakeJudge:
 def test_registry_lists_every_suite_with_a_revision() -> None:
     assert list_suites() == [
         "browsecomp",
+        "company-findall",
         "company-rag",
         "company-retrieval",
         "dsqa",

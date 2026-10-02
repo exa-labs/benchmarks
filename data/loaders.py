@@ -183,6 +183,7 @@ def load_widesearch() -> list[Task]:
 
 
 _DATASETS = {
+    "company-findall": "company_findall/queries.jsonl",
     "people": "people.jsonl",
     "company": "company.jsonl",
     "publication": "publication.jsonl",

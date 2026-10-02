@@ -1,0 +1,19 @@
+{
+  "release": "company-findall-synthetic-v1",
+  "name": "Company FindAll (synthetic)",
+  "description": "Grade every returned company against the full query, with no evaluation row cap.",
+  "created_by": "Exa",
+  "file": "queries.jsonl",
+  "sha256": "0d2df817b6a0236b0f6ce41085d0345375e4d0f05069fb24ad3a9eaf78f1b55e",
+  "queries": 300,
+  "criteria": 949,
+  "requested_max_rows": 25,
+  "grading_max_rows": null,
+  "judge_model": "openai/gpt-6-luna",
+  "rubric": "holistic-binary-pointwise-v1",
+  "contract_sha256": {
+    "agent_instructions.txt": "bd86ad5119ebbfe816258ed77251ef5443fb33b7c00fc57b429ce0e16b7d04d6",
+    "output_schema.json": "e8c3d1d79481882e4ca6631d63e9c7a5dbda4e13e025bc981250ce89d7ba73f3",
+    "parallel_output_spec.txt": "568bfe32bfee9756db3a6d119b9a3d50d20a1940f9507a68cfa7055f13af4994"
+  }
+}

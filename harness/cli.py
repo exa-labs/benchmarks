@@ -24,6 +24,7 @@ from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, T
 from rich.table import Table
 
 from benchmarks import get_suite, list_suites
+from harness.comparison import compare_findall
 from harness.llm import JUDGE_DEFAULT
 from harness.llm.clients import provider_of
 from harness.llm.judge import Judge
@@ -48,6 +49,9 @@ PROVIDER_KEYS = {
     "parallel": ("PARALLEL_API_KEY", "PARALLELS_API_KEY"),
     "perplexity": ("PERPLEXITY_API_KEY",),
     "claude": ("ANTHROPIC_API_KEY",),
+    "exa-agent": ("EXA_API_KEY",),
+    "parallel-task": ("PARALLEL_API_KEY", "PARALLELS_API_KEY"),
+    "perplexity-agent": ("PERPLEXITY_API_KEY",),
 }
 
 
@@ -133,12 +137,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         compatible = []
         for name in names:
             spec = catalog.resolve(name)
-            if args.model and spec.kind != "search":
+            if args.model and spec.kind not in ("search", "agent"):
                 spec = catalog.resolve(name, model=args.model)
             if spec.kind not in suite.system_kinds:
                 continue
             settings = dict(spec.settings)
             if args.num_results is not None:
+                if spec.kind == "agent":
+                    errors.append(
+                        "--num-results does not apply to hosted agents; output requests are defined by the suite"
+                    )
+                    continue
                 settings["num_results"] = args.num_results
             if args.enrich_exa_contents:
                 if spec.kind not in ("search", "rag"):
@@ -163,11 +172,12 @@ def cmd_run(args: argparse.Namespace) -> int:
         console.print("Preflight passed; no paid API calls made.")
         return 0
     summaries = []
+    findall_dirs = []
     for spec, suite, tasks in plan:
         runner = Runner(
             spec,
             suite,
-            judge=Judge(args.judge_model),
+            judge=Judge(args.judge_model, **suite.judge_settings),
             runs_root=Path(args.runs_dir),
             run_suffix=args.run_suffix,
             concurrency=args.concurrency,
@@ -184,6 +194,16 @@ def cmd_run(args: argparse.Namespace) -> int:
             summary = asyncio.run(runner.run(tasks, on_done=lambda _: progress.advance(bar)))
         print_summary(summary)
         summaries.append(summary)
+        if suite.name == "company-findall":
+            findall_dirs.append(runner.run_dir)
+    if len(findall_dirs) > 1:
+        comparison = compare_findall(findall_dirs)
+        replacements = {s["system"]: s for s in comparison["summaries"]}
+        summaries = [
+            replacements[s["system"]] if s["suite"] == "company-findall" else s for s in summaries
+        ]
+        for summary in comparison["summaries"]:
+            print_summary(summary)
     if args.output:
         write_json(Path(args.output), summaries)
     return 0 if all(s["failed"] == 0 for s in summaries) else 1
@@ -193,12 +213,34 @@ def cmd_summary(args: argparse.Namespace) -> int:
     run_dir = Path(args.run_dir)
     config = read_json(run_dir / "config.json")
     suite = get_suite(config["suite"])
-    tasks = [t for t in suite.load() if (run_dir / "tasks" / safe_name(t.id)).exists()]
+    previous_path = run_dir / "summary.json"
+    previous = read_json(previous_path) if previous_path.exists() else {}
+    selected = previous.get("task_ids")
+    # A run directory can contain older, larger selections. Preserve the last
+    # completed selection so rebuilding a summary cannot change its fleet cohort.
+    tasks = [
+        t
+        for t in suite.load()
+        if (
+            t.id in selected
+            if selected is not None
+            else (run_dir / "tasks" / safe_name(t.id)).exists()
+        )
+    ]
     summary = summarize(suite, load_summary_outcomes(run_dir, suite, tasks), config)
     write_json(run_dir / "summary.json", summary)
     if args.output:
         write_json(Path(args.output), [summary])
     print_summary(summary)
+    return 0
+
+
+def cmd_compare(args: argparse.Namespace) -> int:
+    comparison = compare_findall([Path(directory) for directory in args.run_dirs])
+    for summary in comparison["summaries"]:
+        print_summary(summary)
+    if args.output:
+        write_json(Path(args.output), comparison)
     return 0
 
 
@@ -228,7 +270,8 @@ def print_summary(summary: dict) -> None:
     table.add_row("system cost per task", f"${cost['system_usd_per_task']:.4f}{known}")
     judge_known = "" if cost["judge_cost_known"] else " (incomplete)"
     table.add_row("judge cost", f"${cost['judge_usd']:.4f}{judge_known}")
-    table.add_row("mean searches", f"{summary['mean_searches']:.2f}")
+    search_known = "" if summary.get("search_count_known", True) else " (incomplete)"
+    table.add_row("mean searches", f"{summary['mean_searches']:.2f}{search_known}")
     table.add_row("mean latency", f"{summary['mean_latency_s']:.1f}s")
     table.add_row("stop reasons", json.dumps(summary["stop_reasons"]))
     console.print(table)
@@ -274,6 +317,13 @@ def build_parser() -> argparse.ArgumentParser:
     summary.add_argument("run_dir")
     summary.add_argument("--output", "-o", help="export a JSON list containing this summary")
     summary.set_defaults(func=cmd_summary)
+
+    compare = commands.add_parser(
+        "compare", help="normalize aligned Company FindAll runs against a fleet"
+    )
+    compare.add_argument("run_dirs", nargs="+")
+    compare.add_argument("--output", "-o", help="write fleet configuration and comparison JSON")
+    compare.set_defaults(func=cmd_compare)
     return parser
 
 
