@@ -59,3 +59,35 @@ def bootstrap_mean(
     tail = (1 - confidence_level) / 2
     low, high = np.quantile(means, [tail, 1 - tail])
     return MeanInterval(estimate, float(low), float(high), n)
+
+
+def bootstrap_ratio(numerators: Sequence[float], denominators: Sequence[float]) -> MeanInterval:
+    """Ratio of sums, resampling paired task counts (not individual entities).
+
+    Zero-denominator samples score zero, matching empty-query precision. Use the
+    same seed, resample count and confidence level as the default mean intervals.
+    """
+    top, bottom = np.asarray(numerators, dtype=float), np.asarray(denominators, dtype=float)
+    if top.shape != bottom.shape or top.ndim != 1:
+        raise ValueError("ratio inputs must be aligned one-dimensional counts")
+    if not np.isfinite(top).all() or not np.isfinite(bottom).all() or (bottom < 0).any():
+        raise ValueError("ratio counts must be finite with nonnegative denominators")
+    n = len(top)
+    estimate = float(top.sum() / bottom.sum()) if bottom.sum() else 0.0
+    if n < 2:
+        return MeanInterval(estimate if n else None, None, None, n)
+    rng = np.random.default_rng(BOOTSTRAP_SEED)
+    samples = np.empty(BOOTSTRAP_RESAMPLES)
+    for start in range(0, BOOTSTRAP_RESAMPLES, 256):
+        size = min(256, BOOTSTRAP_RESAMPLES - start)
+        indices = rng.integers(n, size=(size, n))
+        den = bottom[indices].sum(axis=1)
+        samples[start : start + size] = np.divide(
+            top[indices].sum(axis=1),
+            den,
+            out=np.zeros(size),
+            where=den != 0,
+        )
+    tail = (1 - CONFIDENCE_LEVEL) / 2
+    low, high = np.quantile(samples, [tail, 1 - tail])
+    return MeanInterval(estimate, float(low), float(high), n)

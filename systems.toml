@@ -265,3 +265,133 @@ searcher = "parallel-extract"
 [systems.extract-rag-claude-extract]
 kind = "extract-rag"
 searcher = "claude-extract"
+
+# Hosted research products (no shared Scout model).
+
+[searchers.exa-agent-minimal]
+provider = "exa-agent"
+max_concurrency = 12
+qps = 3
+effort = "minimal"
+timeout_s = 3600
+
+[systems.exa-agent-minimal]
+kind = "agent"
+searcher = "exa-agent-minimal"
+
+[searchers.exa-agent-low]
+provider = "exa-agent"
+max_concurrency = 12
+qps = 3
+effort = "low"
+timeout_s = 3600
+
+[systems.exa-agent-low]
+kind = "agent"
+searcher = "exa-agent-low"
+
+[searchers.exa-agent-base]
+provider = "exa-agent"
+max_concurrency = 12
+qps = 3
+effort = "base"
+timeout_s = 3600
+
+[systems.exa-agent-base]
+kind = "agent"
+searcher = "exa-agent-base"
+
+[searchers.exa-agent-medium]
+provider = "exa-agent"
+max_concurrency = 12
+qps = 3
+effort = "medium"
+timeout_s = 3600
+
+[systems.exa-agent-medium]
+kind = "agent"
+searcher = "exa-agent-medium"
+
+[searchers.exa-agent-high]
+provider = "exa-agent"
+max_concurrency = 12
+qps = 3
+effort = "high"
+timeout_s = 3600
+
+[systems.exa-agent-high]
+kind = "agent"
+searcher = "exa-agent-high"
+
+[searchers.exa-agent-xhigh]
+provider = "exa-agent"
+max_concurrency = 12
+qps = 3
+effort = "xhigh"
+timeout_s = 3600
+
+[systems.exa-agent-xhigh]
+kind = "agent"
+searcher = "exa-agent-xhigh"
+
+[searchers.exa-agent-auto]
+provider = "exa-agent"
+max_concurrency = 12
+qps = 3
+effort = "auto"
+timeout_s = 3600
+
+[systems.exa-agent-auto]
+kind = "agent"
+searcher = "exa-agent-auto"
+
+[searchers.parallel-task-base]
+provider = "parallel-task"
+max_concurrency = 3
+qps = 3
+processor = "base"
+timeout_s = 3600
+# Published USD/run, checked 2026-10-02; differs from historical reference costs.
+cost_per_run_usd = 0.01
+
+[systems.parallel-task-base]
+kind = "agent"
+searcher = "parallel-task-base"
+
+[searchers.parallel-task-core]
+provider = "parallel-task"
+max_concurrency = 3
+qps = 3
+processor = "core"
+timeout_s = 3600
+# Published USD/run, checked 2026-10-02; differs from historical reference costs.
+cost_per_run_usd = 0.025
+
+[systems.parallel-task-core]
+kind = "agent"
+searcher = "parallel-task-core"
+
+[searchers.parallel-task-ultra]
+provider = "parallel-task"
+max_concurrency = 10
+qps = 3
+processor = "ultra"
+timeout_s = 3600
+# Published USD/run, checked 2026-10-02; differs from historical reference costs.
+cost_per_run_usd = 0.3
+
+[systems.parallel-task-ultra]
+kind = "agent"
+searcher = "parallel-task-ultra"
+
+[searchers.perplexity-agent-pro]
+provider = "perplexity-agent"
+max_concurrency = 3
+qps = 3
+preset = "low"
+max_output_tokens = 16000
+timeout_s = 3600
+
+[systems.perplexity-agent-pro]
+kind = "agent"
+searcher = "perplexity-agent-pro"

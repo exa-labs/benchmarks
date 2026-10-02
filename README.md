@@ -1,6 +1,6 @@
 # Exa Search Benchmarks
 
-Open datasets and a shared evaluation harness for search APIs, with 12 runnable
+Open datasets and a shared evaluation harness for search APIs, with 13 runnable
 suites across the Exa datasets and four public benchmarks below.
 
 **Scout evaluates search tools on agentic tasks.** It swaps Exa, Perplexity,
@@ -11,8 +11,9 @@ evidence it retrieves. Each adapter preserves its provider's search request form
 
 The runner also supports single-step RAG, direct retrieval and URL extraction + RAG.
 OpenAI and Anthropic native-search presets use hosted web search within Scout,
-evaluating each provider's model and search together. End-to-end agentic search
-products like Exa Agent are out of scope. All modes share grading, resumable runs,
+evaluating each provider's model and search together. **Hosted agent** systems
+evaluate Exa Agent, Parallel Task and Perplexity Agent as complete research
+products, including on Company FindAll. All modes share grading, resumable runs,
 cost reporting and 95% bootstrap confidence intervals.
 
 ## Benchmarks
@@ -24,12 +25,19 @@ cost reporting and 95% bootstrap confidence intervals.
 | [Company Search](data/company.jsonl) · [blog](https://exa.ai/blog/company-search-benchmarks) | 839 | Retrieval, RAG | Find companies and extract facts |
 | [Publication Retrieval](data/publication.jsonl) · [blog](https://exa.ai/blog/publications-search) | 1,866 | Publication, ToT | Find papers from questions or tip-of-the-tongue recollections |
 | [SWEChat Searches](data/swechatsearches/) | 586 | Retrieval | Exa-derived search benchmark using queries from SWE-chat, graded by result-content rubrics |
+| [Company FindAll](data/company_findall/) | 300 | Hosted agent | Synthetic company prospecting queries; grade every returned company against all requested criteria |
 
 **SWEChat Searches** uses coding-agent search queries from
 [SALT-NLP/SWE-chat](https://huggingface.co/datasets/SALT-NLP/SWE-chat), with
 rubrics derived from the coding agent traces. It measures
 how many criteria the top 1, 5, and 10 results cover using returned snippets;
 it does not run the original coding tasks. See [setup and scoring](data/swechatsearches/README.md).
+
+**Company FindAll** grades every returned company against the full query and
+compares passing counts across a selected fleet. There is no evaluation row cap.
+The bundled agent instructions request up to 25 companies with evidence; any
+additional returned companies are also graded. See
+[setup, scoring and historical reference results](data/company_findall/README.md).
 
 WebCode has 557 runnable QA tasks. Its 250 [Contents](data/webcode/contents.jsonl)
 records and 33 [E2E](data/webcode/e2e.jsonl) tasks are dataset-only exports:
@@ -128,6 +136,7 @@ uv run pubbench --limit 50    # both publication tracks; --track paper or tot
 uv run bench run --suite webcode-rag --system rag-exa-webcode --limit 20
 uv run bench run --suite webcode-highlights --system extract-rag-exa-extract --limit 20
 uv run bench run --suite swechatsearches --system search-exa-auto-highlights --judge-model openai/gpt-6-luna --limit 20
+uv run bench run --suite company-findall --system exa-agent-low --limit 5
 ```
 
 These commands make paid calls. `--dry-run` validates data, compatible systems and
@@ -145,12 +154,12 @@ pinned revisions by [`data/loaders.py`](data/loaders.py):
 | `dsqa` | 900 | [Google DeepSearchQA](https://huggingface.co/datasets/google/deepsearchqa) |
 | `widesearch` | 200 | [ByteDance WideSearch](https://huggingface.co/datasets/ByteDance-Seed/WideSearch) |
 
-Use Scout or single-step RAG for these suites. `uv run bench download` fetches all
-data up front. To preflight all 12 runnable suites with compatible Exa systems:
+Use Scout, single-step RAG or hosted agents for these suites. `uv run bench download` fetches all
+data up front. To preflight all 13 runnable suites with compatible Exa systems:
 
 ```bash
 uv run bench run --suite all \
-  --system rag-exa-auto-highlights search-exa-auto-highlights extract-rag-exa-extract \
+  --system rag-exa-auto-highlights search-exa-auto-highlights extract-rag-exa-extract exa-agent-low \
   --limit 1 --dry-run
 ```
 
@@ -160,6 +169,7 @@ Remove `--dry-run` to execute; remove `--limit` for the full datasets.
 
 **RAG** searches once, then answers.
 **Search** grades ranked results directly. **Extract + RAG** answers from a supplied URL.
+**Agent** runs a provider's hosted research product, with its own model and loop.
 
 The ten primary API presets below each have `scout-`, `rag-` and `search-` variants
 (for example, `scout-perplexity-fast`). All provider settings live in
@@ -171,6 +181,12 @@ The ten primary API presets below each have `scout-`, `rag-` and `search-` varia
 | Perplexity Search | `perplexity-web`, `perplexity-fast` |
 | Parallel Search | `parallel-turbo`, `parallel-fast`, `parallel-basic`, `parallel-advanced` |
 | Brave LLM Context | `brave-llm-context` |
+
+Hosted agent system names are `exa-agent-{minimal,low,base,medium,high,xhigh,auto}`,
+`parallel-task-{base,core,ultra}`, and `perplexity-agent-pro` (preset `low`). These
+have no `scout-` prefix or `--model` override. They use the corresponding provider
+keys below. See [Company FindAll](data/company_findall/README.md#agent-contract)
+for output contracts, resume behavior and historical-arm compatibility notes.
 
 URL extraction supports Exa, Parallel and Claude. Set the corresponding `PERPLEXITY_API_KEY`,
 `PARALLEL_API_KEY`, `BRAVE_SEARCH_API_KEY` or `ANTHROPIC_API_KEY` when using them.

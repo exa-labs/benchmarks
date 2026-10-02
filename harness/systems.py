@@ -10,12 +10,14 @@ results.
 from __future__ import annotations
 
 import copy
+import hashlib
 import time
 import tomllib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from harness.agents import AGENT_PROVIDERS, HostedAgent, build_agent
 from harness.llm import SCOUT_DEFAULT
 from harness.llm.clients import provider_of
 from harness.rag import SingleStepRAG, enrich_results
@@ -34,7 +36,7 @@ from harness.tools import SearchTool
 DEFAULT_CATALOG = Path(__file__).with_name("systems.toml")
 if not DEFAULT_CATALOG.exists():
     DEFAULT_CATALOG = Path(__file__).resolve().parents[1] / "systems.toml"
-SYSTEM_KINDS = ("scout", "rag", "search", "extract-rag")
+SYSTEM_KINDS = ("scout", "rag", "search", "extract-rag", "agent")
 _SCOUT_FIELDS = {
     "reasoning_effort",
     "temperature",
@@ -112,12 +114,12 @@ class Catalog:
         merged = {**copy.deepcopy(self.defaults.get(kind, {})), **entry}
         base_model = merged.pop("model", SCOUT_DEFAULT if kind == "scout" else None)
         resolved_model = model or base_model
-        if kind != "search":
+        if kind not in ("search", "agent"):
             if not resolved_model:
                 raise ValueError(f"system {name!r} has no model")
             provider_of(resolved_model)
         elif resolved_model is not None:
-            raise ValueError("search systems do not use a synthesis model")
+            raise ValueError(f"{kind} systems do not use a synthesis model")
 
         searcher_name = merged.pop("searcher", None)
         hosted = merged.pop("hosted_web_search", None)
@@ -142,10 +144,16 @@ class Catalog:
             if searcher_name not in self.searchers:
                 raise KeyError(f"system {name!r} references unknown searcher {searcher_name!r}")
             searcher = {"name": searcher_name, **copy.deepcopy(self.searchers[searcher_name])}
+            if (kind == "agent") != (searcher["provider"] in AGENT_PROVIDERS):
+                raise ValueError("hosted agent providers require kind = 'agent'")
 
-        allowed = (
-            _SCOUT_FIELDS if kind == "scout" else _RAG_FIELDS if kind != "search" else set()
-        ) | {"num_results"}
+        allowed = {
+            "scout": _SCOUT_FIELDS | {"num_results"},
+            "rag": _RAG_FIELDS | {"num_results"},
+            "extract-rag": _RAG_FIELDS | {"num_results"},
+            "search": {"num_results"},
+            "agent": set(),
+        }[kind]
         if kind in ("search", "rag"):
             allowed.add("enrich_exa_contents")
         unknown = set(merged) - allowed
@@ -164,8 +172,10 @@ class Catalog:
 class System:
     """A runnable system: answers one prompt and returns a JSON-serializable record."""
 
-    def __init__(self, spec: SystemSpec) -> None:
+    def __init__(self, spec: SystemSpec, *, state_root: Path | None = None) -> None:
         self.spec = spec
+        self.state_root = state_root
+        self._agent: HostedAgent | None = None
         settings = dict(spec.settings)
         num_results = settings.pop("num_results", 10)
         self.num_results = num_results
@@ -174,7 +184,10 @@ class System:
         self._searcher: Searcher | None = None
         if spec.searcher is not None:
             options = {k: v for k, v in spec.searcher.items() if k not in ("name", "provider")}
-            self._searcher = build_searcher(spec.searcher["provider"], options)
+            if spec.kind == "agent":
+                self._agent = build_agent(spec.searcher["provider"], options)
+            else:
+                self._searcher = build_searcher(spec.searcher["provider"], options)
         self._runner: Scout | SingleStepRAG | None = None
         if spec.kind == "scout":
             assert spec.model is not None
@@ -184,7 +197,7 @@ class System:
                 tools=tools,
                 hosted_web_search=spec.hosted_web_search,
             )
-        elif spec.kind != "search":
+        elif spec.kind not in ("search", "agent"):
             assert self._searcher is not None
             assert spec.model is not None
             self._runner = SingleStepRAG(
@@ -197,6 +210,14 @@ class System:
 
     async def execute(self, task: Task, suite: Suite) -> dict[str, Any]:
         """Execute the suite's declared result contract without leaking gold metadata."""
+        if self._agent is not None:
+            task_key = hashlib.sha256(task.id.encode()).hexdigest()
+            state_path = self.state_root / f"{task_key}.json" if self.state_root else None
+            return await self._agent.run(
+                suite.prompt(task),
+                request=suite.agent_request(),
+                state_path=state_path,
+            )
         if self.spec.kind == "search":
             start = time.monotonic()
             assert self._searcher is not None
@@ -229,6 +250,8 @@ class System:
         return result.to_dict()
 
     async def close(self) -> None:
+        if self._agent is not None:
+            await self._agent.close()
         if self._searcher is not None:
             await self._searcher.close()
         if self._enrichment is not None:

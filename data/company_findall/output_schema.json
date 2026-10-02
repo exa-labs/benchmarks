@@ -1,0 +1,82 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "entity_type": {
+            "type": "string"
+          },
+          "canonical_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "key_attribute": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "key_attribute"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "claim": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url",
+                "title",
+                "claim"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "entity_type",
+          "canonical_url",
+          "summary",
+          "attributes",
+          "evidence"
+        ]
+      }
+    }
+  },
+  "required": [
+    "rows"
+  ]
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from benchmarks.browsecomp import BrowseComp
+from benchmarks.company_findall import CompanyFindAll
 from benchmarks.dsqa import DeepSearchQA
 from benchmarks.exa import (
     CompanyRAG,
@@ -28,6 +29,7 @@ SUITES: dict[str, type[Suite]] = {
         People,
         CompanyRetrieval,
         CompanyRAG,
+        CompanyFindAll,
         Publication,
         PublicationToT,
         SWEChatSearches,

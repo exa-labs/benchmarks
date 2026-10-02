@@ -48,8 +48,20 @@ class Suite(ABC):
     # Identifies the pinned data and grading contract (source pin + grader version).
     # Bump it whenever the data pin, a prompt, or grading logic changes.
     revision: str = ""
-    system_kinds = ("scout", "rag")
+    system_kinds = ("scout", "rag", "agent")
     requires_judge = True
+    # Generation settings applied by the CLI; changes belong in the suite revision.
+    judge_settings: dict[str, Any] = {}
+    # Ratio-of-sums metrics need paired task resampling, not a mean of task ratios.
+    ratio_metrics: dict[str, tuple[str, str]] = {}
+
+    def failure_scores(self, result: dict[str, Any] | None) -> dict[str, float] | None:
+        """Optional zero-score treatment for failed tasks in ordinary metrics."""
+        return None
+
+    def agent_request(self) -> dict[str, Any]:
+        """Public instructions/output_schema/output_spec for agents; never gold answers."""
+        return {}
 
     @abstractmethod
     def load(self) -> list[Task]:

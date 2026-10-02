@@ -67,12 +67,14 @@ class Judge:
         model: str = JUDGE_DEFAULT,
         *,
         reasoning_effort: str | None = None,
+        temperature: float | None = None,
         max_output_tokens: int = 16_000,
         json_attempts: int = 2,
         client: ModelClient | None = None,
     ) -> None:
         self.model = model
         self.reasoning_effort = reasoning_effort
+        self.temperature = temperature
         self.max_output_tokens = max_output_tokens
         self.json_attempts = json_attempts
         self._client = client
@@ -99,6 +101,7 @@ class Judge:
                 messages,
                 max_output_tokens=self.max_output_tokens,
                 reasoning_effort=self.reasoning_effort,
+                temperature=self.temperature,
                 response_schema=response_schema,
             )
         except Exception:
