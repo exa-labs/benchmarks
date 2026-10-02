@@ -1,6 +1,6 @@
 # Exa Search Benchmarks
 
-Open datasets and a shared evaluation harness for search APIs, with 11 runnable
+Open datasets and a shared evaluation harness for search APIs, with 12 runnable
 suites across the Exa datasets and four public benchmarks below.
 
 **Scout evaluates search tools on agentic tasks.** It swaps Exa, Perplexity,
@@ -23,6 +23,13 @@ cost reporting and 95% bootstrap confidence intervals.
 | [People Search](data/people.jsonl) · [blog](https://exa.ai/blog/people-search-benchmark) | 1,400 | Retrieval | Find profiles by role, location and seniority |
 | [Company Search](data/company.jsonl) · [blog](https://exa.ai/blog/company-search-benchmarks) | 839 | Retrieval, RAG | Find companies and extract facts |
 | [Publication Retrieval](data/publication.jsonl) · [blog](https://exa.ai/blog/publications-search) | 1,866 | Publication, ToT | Find papers from questions or tip-of-the-tongue recollections |
+| [SWEChat Searches](data/swechatsearches/) | 586 | Retrieval | Exa-derived search benchmark using queries from SWE-chat, graded by result-content rubrics |
+
+**SWEChat Searches** uses coding-agent search queries from
+[SALT-NLP/SWE-chat](https://huggingface.co/datasets/SALT-NLP/SWE-chat), with
+rubrics derived from the coding agent traces. It measures
+how many criteria the top 1, 5, and 10 results cover using returned snippets;
+it does not run the original coding tasks. See [setup and scoring](data/swechatsearches/README.md).
 
 WebCode has 557 runnable QA tasks. Its 250 [Contents](data/webcode/contents.jsonl)
 records and 33 [E2E](data/webcode/e2e.jsonl) tasks are dataset-only exports:
@@ -120,6 +127,7 @@ uv run cbench --limit 50       # both company tracks; --track retrieval or rag
 uv run pubbench --limit 50    # both publication tracks; --track paper or tot
 uv run bench run --suite webcode-rag --system rag-exa-webcode --limit 20
 uv run bench run --suite webcode-highlights --system extract-rag-exa-extract --limit 20
+uv run bench run --suite swechatsearches --system search-exa-auto-highlights --judge-model openai/gpt-6-luna --limit 20
 ```
 
 These commands make paid calls. `--dry-run` validates data, compatible systems and
@@ -138,7 +146,7 @@ pinned revisions by [`data/loaders.py`](data/loaders.py):
 | `widesearch` | 200 | [ByteDance WideSearch](https://huggingface.co/datasets/ByteDance-Seed/WideSearch) |
 
 Use Scout or single-step RAG for these suites. `uv run bench download` fetches all
-data up front. To preflight all 11 runnable suites with compatible Exa systems:
+data up front. To preflight all 12 runnable suites with compatible Exa systems:
 
 ```bash
 uv run bench run --suite all \
@@ -213,3 +221,9 @@ Add providers through [`harness/searchers/`](harness/searchers/) and
 MIT. Upstream datasets retain their own terms: BrowseComp is MIT, FRAMES and
 DeepSearchQA are Apache-2.0, and WideSearch data is CC0-1.0. BrowseComp is decrypted
 only in memory; do not republish its decrypted questions or answers.
+
+The SWEChat Searches data in [`data/swechatsearches/`](data/swechatsearches/) is not MIT: it contains
+information from [SWE-chat](https://huggingface.co/datasets/SALT-NLP/SWE-chat), which
+is made available under the
+[ODC Attribution License](https://opendatacommons.org/licenses/by/1-0/), and is
+redistributed under the same license. See the [dataset attribution](data/swechatsearches/README.md).

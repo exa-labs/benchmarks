@@ -1,0 +1,13 @@
+{
+  "release": "swechatsearches-v2",
+  "name": "SWEChat Searches",
+  "derived_by": "Exa",
+  "source": {
+    "dataset": "SALT-NLP/SWE-chat",
+    "url": "https://huggingface.co/datasets/SALT-NLP/SWE-chat"
+  },
+  "file": "searches.jsonl",
+  "sha256": "d6eaa9922a0a7b3dd8febd336fab0f53c50d7f8e25495699b3e9498f9b83add6",
+  "queries": 586,
+  "criteria": 887
+}

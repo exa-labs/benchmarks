@@ -9,3 +9,9 @@ __pycache__/
 build/
 dist/
 .DS_Store
+
+# Local credentials and evaluation scratch data
+.env
+.env.*
+!.env.example
+*.pem
