@@ -1223,3 +1223,70 @@ async def test_migrated_suites_execute_through_real_runner(
     assert summary["graded"] == 1 and summary["failed"] == 0
     assert suite.primary_metric in summary["metrics"]
     assert (runner.run_dir / "summary.json").exists()
+
+
+@pytest.mark.parametrize(
+    "preset",
+    ["exa-auto-highlights", "perplexity-web", "parallel-advanced", "brave-llm-context"],
+)
+async def test_swechatsearches_search_grade_and_resume(tmp_path, monkeypatch, preset):
+    """Exercise the real adapter, system, grader and runner together, entirely offline."""
+    for key in ("EXA_API_KEY", "PERPLEXITY_API_KEY", "PARALLEL_API_KEY", "BRAVE_SEARCH_API_KEY"):
+        monkeypatch.setenv(key, "offline-test-key")
+    query = 'site:docs.example.org "C++" @scope/pkg  foo::bar'
+    passages = [f"passage {i}" for i in range(1, 7)]
+    evidence = "\n\n".join(passages)
+    calls = []
+
+    def handler(request):
+        payload = (
+            dict(request.url.params) if request.method == "GET" else json.loads(request.content)
+        )
+        calls.append(payload)
+        actual_query = payload.get(
+            "query", payload.get("q", payload.get("search_queries", [None])[0])
+        )
+        expected_query = (
+            "site docs example org C scope pkg foo bar" if preset == "brave-llm-context" else query
+        )
+        assert actual_query == expected_query
+        assert "hidden rubric" not in json.dumps(payload)
+        row = {"url": "https://docs.example.org", "title": "Docs"}
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {
+                        **row,
+                        "highlights": passages,
+                        "snippet": evidence,
+                        "excerpts": passages,
+                    }
+                ],
+                "grounding": {"generic": [{**row, "snippets": passages}]},
+            },
+        )
+
+    spec = Catalog.load().resolve(f"search-{preset}")
+    system = System(spec)
+    await system._searcher._client.aclose()
+    system._searcher._client = mock_client(handler)
+    client = ScriptedClient([gen('{"reasoning": "evidence", "score": 1}', cost=0.001)])
+    task = Task("swechatsearches-001", query, [{"id": "c1", "description": "hidden rubric"}])
+    runner = Runner(
+        spec,
+        get_suite("swechatsearches"),
+        judge=Judge(client.model, client=client),
+        runs_root=tmp_path,
+        system=system,
+    )
+    summary = await runner.run([task])
+    assert summary["graded"] == 1 and summary["failed"] == 0
+    assert summary["covered_at_10_failed_as_zero"] == 1
+    assert summary["cost"]["judge_usd"] == 0.001
+    result = json.loads((runner.task_dir(task) / "result.json").read_text())
+    assert result["results"]
+    judge_prompt = client.requests[0]["messages"][-1]["content"]
+    assert judge_prompt.endswith("URL: https://docs.example.org\nTitle: Docs\n\n" + evidence)
+    assert (await runner.run([task]))["graded"] == 1
+    assert len(calls) == 1 and len(client.requests) == 1

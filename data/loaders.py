@@ -186,6 +186,7 @@ _DATASETS = {
     "people": "people.jsonl",
     "company": "company.jsonl",
     "publication": "publication.jsonl",
+    "swechatsearches": "swechatsearches/searches.jsonl",
     "webcode-rag": "webcode/rag.jsonl",
     "webcode-highlights": "webcode/highlights.jsonl",
     "webcode-contents": "webcode/contents.jsonl",
