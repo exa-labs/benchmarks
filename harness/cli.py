@@ -19,6 +19,7 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
+from huggingface_hub.errors import RepositoryNotFoundError
 from rich.console import Console
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 from rich.table import Table
@@ -92,11 +93,26 @@ def cmd_list(args: argparse.Namespace) -> int:
     return 0
 
 
+def no_access(name: str) -> str:
+    """Why a suite on a gated or private Hugging Face dataset could not load."""
+    return (
+        f"{name}: no access to its Hugging Face dataset; request access on the dataset page, "
+        "then run `hf auth login` or set HF_TOKEN"
+    )
+
+
 def cmd_download(args: argparse.Namespace) -> int:
     failures = 0
     for name in [args.suite] if args.suite else list_suites():
         try:
             tasks = get_suite(name).load()
+        except RepositoryNotFoundError:  # also raised for a gated dataset without access
+            if args.suite:
+                failures += 1
+                console.print(f"[red]{no_access(name)}[/red]")
+            else:
+                console.print(f"[yellow]{no_access(name)}; skipped[/yellow]")
+            continue
         except Exception as error:  # report every suite, then fail the command
             failures += 1
             console.print(f"[red]{name}: {error}[/red]")
@@ -123,7 +139,15 @@ def cmd_run(args: argparse.Namespace) -> int:
     plan = []
     errors = []
     for suite in suites:
-        tasks = suite.load()
+        try:
+            tasks = suite.load()
+        except RepositoryNotFoundError:
+            # --suite all skips a gated dataset the user cannot read; naming it is an error.
+            if args.suite == ["all"]:
+                console.print(f"[yellow]{no_access(suite.name)}; skipped[/yellow]")
+            else:
+                errors.append(no_access(suite.name))
+            continue
         if args.split:
             tasks = [t for t in tasks if t.metadata.get("split") == args.split]
         if args.limit is not None:
