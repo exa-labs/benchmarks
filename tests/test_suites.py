@@ -20,10 +20,12 @@ from benchmarks import (
     widesearch,
 )
 from benchmarks.graders.base import JudgeSpend
+from benchmarks.graders.rubric import format_result
 from data import loaders
 from data.sources import SourceError, csv_rows, fetch_verified, require_count
 from harness.llm.judge import JudgeOutputError, JudgeResponse
 from harness.llm.types import Usage
+from harness.searchers import SearchResult
 from harness.suite import Grade, Task
 
 
@@ -63,6 +65,7 @@ def test_registry_lists_every_suite_with_a_revision() -> None:
         "people",
         "publication",
         "publication-tot",
+        "swechatsearches",
         "webcode-highlights",
         "webcode-rag",
         "widesearch",
@@ -71,7 +74,7 @@ def test_registry_lists_every_suite_with_a_revision() -> None:
         suite = get_suite(name)
         assert suite.name == name
         assert suite.primary_metric
-        assert suite.revision.endswith(("+grader-v1", "+grader-v2"))
+        assert suite.revision.endswith(("+grader-v1", "+grader-v2", "+grader-v3"))
     with pytest.raises(ValueError, match="unknown suite"):
         get_suite("nope")
 
@@ -431,6 +434,7 @@ def test_widesearch_aggregate_averages_per_task_f1() -> None:
         ("company-rag", 234),
         ("publication", 1472),
         ("publication-tot", 394),
+        ("swechatsearches", 586),
         ("webcode-highlights", 250),
         ("webcode-rag", 307),
     ],
@@ -541,3 +545,100 @@ def test_webcode_exports_remain_dataset_only():
     assert "webcode-e2e" not in list_suites()
     assert len(loaders.load_rows("webcode-contents")) == 250
     assert "webcode-contents" not in list_suites()
+
+
+# ---------------------------------------------------------------------------
+# SWEChatSearches
+# ---------------------------------------------------------------------------
+
+
+def _rubric_reply(score: int) -> dict[str, Any]:
+    return {"reasoning": "evidence" if score else "missing", "score": score}
+
+
+def test_swechatsearches_bundled_tasks_are_well_formed():
+    """Check the fixed dataset here instead of validating it on every eval run."""
+    tasks = get_suite("swechatsearches").load()
+    assert tasks
+    assert len({task.id for task in tasks}) == len(tasks)
+    assert len({task.problem for task in tasks}) == len(tasks)
+    assert all(task.problem.strip() for task in tasks)
+    assert all(1 <= len(task.answer) <= 3 for task in tasks)
+    for task in tasks:
+        ids = [criterion["id"] for criterion in task.answer]
+        assert len(set(ids)) == len(ids)
+        assert all(criterion["description"].strip() for criterion in task.answer)
+
+
+async def test_swechatsearches_covers_each_criterion_at_its_best_rank():
+    criteria = [{"id": "c1", "description": "names it"}, {"id": "c2", "description": "dates it"}]
+    judge = FakeJudge(_rubric_reply(0), _rubric_reply(1), _rubric_reply(0), _rubric_reply(0))
+    grade = await get_suite("swechatsearches").grade_result(
+        Task("s", "query", criteria),
+        {"results": [{"url": "https://one"}, {"url": "https://two"}]},
+        judge,
+    )
+    assert grade.scores == {"covered_at_1": 0, "covered_at_5": 0.5, "covered_at_10": 0.5}
+    assert [c["id"] for c in grade.details["criteria"]] == ["c1", "c2"]
+    assert grade.details["criteria"][0]["results"][1] == {
+        "rank": 2,
+        "score": 1.0,
+        "reasoning": "evidence",
+    }
+    assert "Criterion: names it" in judge.prompts[0][1]
+
+
+async def test_swechatsearches_grades_only_the_top_ten_results():
+    judge = FakeJudge(*[_rubric_reply(0)] * 10)
+    grade = await get_suite("swechatsearches").grade_result(
+        Task("s", "query", [{"id": "c1", "description": "x"}]),
+        {"results": [{"url": f"https://r{i}"} for i in range(12)]},
+        judge,
+    )
+    assert len(judge.prompts) == 10
+    assert grade.scores["covered_at_10"] == 0
+
+
+async def test_swechatsearches_empty_retrieval_covers_nothing_without_judge():
+    suite = get_suite("swechatsearches")
+    grade = await suite.grade_result(suite.load()[0], {"results": []}, FakeJudge())
+    assert grade.scores == {"covered_at_1": 0, "covered_at_5": 0, "covered_at_10": 0}
+
+
+def test_rubric_prompt_shows_returned_content_only():
+    shown = format_result(
+        SearchResult(
+            url="https://docs",
+            title="Docs",
+            text="full page text",
+            highlights=["first", "", "second"],
+            metadata={"published_date": "2026-01-02"},
+        )
+    )
+    assert (
+        shown == "URL: https://docs\nTitle: Docs\nPublication date: 2026-01-02\n\nfirst\n\nsecond"
+    )
+    assert format_result(SearchResult(url="https://empty")).endswith("No contents available.")
+
+
+def test_rubric_content_cap_and_blank_highlight_fallback():
+    assert format_result(SearchResult(text="evidence", highlights=[" ", "\n"])).endswith("evidence")
+    # Segmentation must not change the evidence shown to the judge.
+    passages = ["passage " + str(i) for i in range(6)] + ["x" * 20_000]
+    from_highlights = format_result(SearchResult(highlights=passages))
+    from_text = format_result(SearchResult(text="\n\n".join(passages)))
+    assert from_highlights == from_text
+    assert "passage 5" in from_highlights
+    assert len(from_highlights.split("\n\n", 1)[1]) == 16_384
+
+
+def test_swechatsearches_release_manifest_matches_bundled_data():
+    import hashlib
+    from pathlib import Path
+
+    root = Path(loaders.__file__).parent / "swechatsearches"
+    manifest = json.loads((root / "manifest.json").read_text())
+    assert hashlib.sha256((root / manifest["file"]).read_bytes()).hexdigest() == manifest["sha256"]
+    tasks = get_suite("swechatsearches").load()
+    assert len(tasks) == manifest["queries"] == 586
+    assert sum(len(task.answer) for task in tasks) == manifest["criteria"] == 887

@@ -14,6 +14,7 @@ from benchmarks.exa import (
     WebCodeRAG,
 )
 from benchmarks.frames import Frames
+from benchmarks.swechatsearches import SWEChatSearches
 from benchmarks.widesearch import WideSearch
 from harness.suite import Suite
 
@@ -29,6 +30,7 @@ SUITES: dict[str, type[Suite]] = {
         CompanyRAG,
         Publication,
         PublicationToT,
+        SWEChatSearches,
         WebCodeRAG,
         WebCodeHighlights,
     )
