@@ -54,7 +54,7 @@ settings. Rerun them for current comparisons; these aggregate tables have no CIs
 
 | Searcher | R@1 | R@10 | Precision | Queries |
 |----------|-----|------|-----------|---------|
-| exa | **72.0%** | **94.5%** | **63.3%** | 1399 |
+| exa | **89.5%** | **98.0%** | **86.2%** | 1323 |
 | brave | 44.4% | 77.9% | 30.2% | 1373 |
 | parallel | 20.8% | 74.7% | 26.9% | 1387 |
 
