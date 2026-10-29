@@ -4,7 +4,7 @@ Open datasets and a shared evaluation harness for search APIs, with 11 runnable
 suites across the Exa datasets and four public benchmarks below.
 
 **Scout evaluates search tools on agentic tasks.** It swaps Exa, Perplexity,
-Parallel, Brave or Tavily into a standard research agent while keeping the model,
+Parallel, Brave, Tavily or Keenable into a standard research agent while keeping the model,
 prompts, research loop and budgets fixed across the search API presets. The agent
 searches repeatedly, follows up on results and synthesizes an answer from the
 evidence it retrieves. Each adapter preserves its provider's search request format.
@@ -153,7 +153,7 @@ Remove `--dry-run` to execute; remove `--limit` for the full datasets.
 **RAG** searches once, then answers.
 **Search** grades ranked results directly. **Extract + RAG** answers from a supplied URL.
 
-The eleven primary API presets below each have `scout-`, `rag-` and `search-` variants
+The thirteen primary API presets below each have `scout-`, `rag-` and `search-` variants
 (for example, `scout-perplexity-fast`). All provider settings live in
 [`systems.toml`](systems.toml); `uv run bench list` shows the full catalog.
 
@@ -164,6 +164,7 @@ The eleven primary API presets below each have `scout-`, `rag-` and `search-` va
 | Parallel Search | `parallel-turbo`, `parallel-fast`, `parallel-basic`, `parallel-advanced` |
 | Brave LLM Context | `brave-llm-context` |
 | Tavily Search | `tavily-advanced` |
+| Keenable Search | `keenable-pro`, `keenable-realtime` |
 
 URL extraction supports Exa, Parallel and Claude. Set the corresponding `PERPLEXITY_API_KEY`,
 `PARALLEL_API_KEY`, `BRAVE_SEARCH_API_KEY`, `TAVILY_API_KEY` or `ANTHROPIC_API_KEY` when using them.
@@ -176,6 +177,17 @@ of $0.008 per credit, or two credits per advanced search when usage is absent.
 ```bash
 export TAVILY_API_KEY=...
 uv run bench run --suite frames --system scout-tavily-advanced --limit 5
+```
+
+Keenable uses the keyless endpoint, so it needs no API key. `pro` is deeper retrieval
+and `realtime` is the faster index, with 10 results by default and snippets plus publish
+and index dates. Calls are priced at the [pay-as-you-go rate](https://keenable.ai/pricing)
+of $0.004 per request. The public tier allows 1,000 requests per hour and 10 per second
+per IP; the 100,000-request monthly allowance is for authenticated organizations.
+
+```bash
+uv run bench run --suite frames --system scout-keenable-pro --limit 5
+uv run bench run --suite frames --system scout-keenable-realtime --limit 5
 ```
 
 | Role | Default model |

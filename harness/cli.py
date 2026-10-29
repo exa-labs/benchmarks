@@ -48,6 +48,7 @@ PROVIDER_KEYS = {
     "parallel": ("PARALLEL_API_KEY", "PARALLELS_API_KEY"),
     "perplexity": ("PERPLEXITY_API_KEY",),
     "tavily": ("TAVILY_API_KEY",),
+    "keenable": (),
     "claude": ("ANTHROPIC_API_KEY",),
 }
 
@@ -62,7 +63,7 @@ def missing_credentials(spec: SystemSpec, judge_model: str | None) -> list[str]:
     missing = []
     for provider in sorted(providers):
         names = PROVIDER_KEYS[provider]
-        if not any(os.environ.get(name) for name in names):
+        if names and not any(os.environ.get(name) for name in names):
             missing.append(" or ".join(names))
     return missing
 

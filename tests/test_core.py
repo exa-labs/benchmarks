@@ -41,6 +41,7 @@ from harness.scout import (
 from harness.searchers import (
     BraveSearcher,
     ExaSearcher,
+    KeenableSearcher,
     ParallelSearcher,
     PerplexitySearcher,
     Searcher,
@@ -441,6 +442,151 @@ def test_tavily_catalog_and_credentials(monkeypatch, kind):
 @pytest.mark.parametrize("track,kind", [("retrieval", "search"), ("rag", "rag")])
 def test_legacy_tavily_alias(family, track, kind):
     assert system_name(family, track, "tavily") == f"{kind}-tavily-advanced"
+
+
+@pytest.mark.parametrize("mode", ["pro", "realtime"])
+async def test_keenable_request_and_response(mode):
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        seen["body"] = json.loads(request.content)
+        seen["title"] = request.headers["X-Keenable-Title"]
+        return httpx.Response(
+            200,
+            json={
+                "request_id": "r1",
+                "query": "question",
+                "mode": mode,
+                "usage": {"sku": f"search.{mode}", "amount": 1, "credits": 2, "paid": True},
+                "results": [
+                    {
+                        "title": "A",
+                        "url": "https://a",
+                        "description": "",
+                        "snippet": "snippet",
+                        "published_at": "2026-01-15T10:30:00Z",
+                        "acquired_at": "2026-01-16T08:12:34Z",
+                    },
+                    {"url": "https://b", "title": "B", "snippet": "other"},
+                ],
+            },
+        )
+
+    searcher = KeenableSearcher(mode=mode)
+    await searcher.close()
+    searcher._client = mock_client(handler)
+    try:
+        response = await searcher.run("question")
+    finally:
+        await searcher.close()
+    assert seen == {
+        "url": "https://api.keenable.ai/v1/search/public",
+        "title": "exa-benchmarks",
+        "body": {"query": "question", "mode": mode, "max_results": 10},
+    }
+    assert response.cost_usd == pytest.approx(0.008)
+    assert response.request_id == "r1" and response.queries == ["question"]
+    assert response.latency_ms >= 0
+    assert [row.text for row in response.results] == ["snippet", "other"]
+    assert response.results[0].metadata == {
+        "rank": 0,
+        "published_at": "2026-01-15T10:30:00Z",
+        "acquired_at": "2026-01-16T08:12:34Z",
+    }
+    assert response.results[1].metadata["rank"] == 1
+
+
+@pytest.mark.parametrize(
+    "usage,cost",
+    [(None, 0.004), ({}, 0.004), ({"credits": None}, 0.004), ({"credits": 0}, 0.0)],
+)
+async def test_keenable_limits_and_cost_without_usage(usage, cost):
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        body = {"results": []}
+        if usage is not None:
+            body["usage"] = usage
+        return httpx.Response(200, json=body)
+
+    searcher = KeenableSearcher()
+    await searcher.close()
+    searcher._client = mock_client(handler)
+    try:
+        response = await searcher.run("question", 60)
+    finally:
+        await searcher.close()
+    assert seen == {"query": "question", "mode": "pro", "max_results": 50}
+    assert response.results == [] and response.cost_usd == pytest.approx(cost)
+    with pytest.raises(ValueError, match="at least 1"):
+        searcher.search_payload("question", 0)
+
+
+@pytest.mark.parametrize("status", [429, 529])
+async def test_keenable_retries_transient_errors(monkeypatch, status):
+    attempts = []
+
+    def handler(request):
+        attempts.append(request)
+        return httpx.Response(status if len(attempts) == 1 else 200, json={"results": []})
+
+    async def no_sleep(_):
+        pass
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    searcher = KeenableSearcher(max_attempts=2)
+    await searcher.close()
+    searcher._client = mock_client(handler)
+    try:
+        assert await searcher.search("q") == []
+    finally:
+        await searcher.close()
+    assert len(attempts) == 2
+
+
+@pytest.mark.parametrize("status,max_attempts", [(401, 4), (400, 4), (529, 1)])
+async def test_keenable_propagates_api_errors(status, max_attempts):
+    attempts = []
+
+    def handler(request):
+        attempts.append(request)
+        return httpx.Response(status)
+
+    searcher = KeenableSearcher(max_attempts=max_attempts)
+    await searcher.close()
+    searcher._client = mock_client(handler)
+    try:
+        with pytest.raises(httpx.HTTPStatusError):
+            await searcher.run("q")
+    finally:
+        await searcher.close()
+    assert len(attempts) == 1
+
+
+@pytest.mark.parametrize("kind", ["scout", "rag", "search"])
+@pytest.mark.parametrize("mode", ["pro", "realtime"])
+async def test_keenable_catalog_and_credentials(monkeypatch, kind, mode):
+    monkeypatch.delenv("KEENABLE_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    spec = Catalog.load().resolve(f"{kind}-keenable-{mode}")
+    assert spec.settings["num_results"] == 10
+    assert spec.searcher == {
+        "name": f"keenable-{mode}",
+        "provider": "keenable",
+        "mode": mode,
+    }
+    assert cli.missing_credentials(spec, None) == []
+    await KeenableSearcher().close()
+    with pytest.raises(ValueError, match="unsupported Keenable mode"):
+        KeenableSearcher(mode="webql")
+
+
+@pytest.mark.parametrize("family", ["people", "company", "publication"])
+@pytest.mark.parametrize("track,kind", [("retrieval", "search"), ("rag", "rag")])
+def test_legacy_keenable_alias(family, track, kind):
+    assert system_name(family, track, "keenable") == f"{kind}-keenable-pro"
 
 
 # --------------------------------------------------------------------------- tools
@@ -1125,6 +1271,8 @@ def test_run_directory_changes_with_the_spec(tmp_path):
         ("parallel-advanced", "mode", "advanced"),
         ("brave-llm-context", "provider", "brave"),
         ("tavily-advanced", "search_depth", "advanced"),
+        ("keenable-pro", "mode", "pro"),
+        ("keenable-realtime", "mode", "realtime"),
     ],
 )
 def test_requested_scout_presets(name, option, value):
@@ -1147,6 +1295,8 @@ def test_scout_catalog_contains_exactly_the_requested_api_presets():
         "parallel-advanced",
         "brave-llm-context",
         "tavily-advanced",
+        "keenable-pro",
+        "keenable-realtime",
     }
 
 
