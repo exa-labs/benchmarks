@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from benchmarks.atlas import Atlas
 from benchmarks.browsecomp import BrowseComp
 from benchmarks.dsqa import DeepSearchQA
 from benchmarks.exa import (
@@ -20,6 +21,7 @@ from harness.suite import Suite
 SUITES: dict[str, type[Suite]] = {
     suite.name: suite
     for suite in (
+        Atlas,
         BrowseComp,
         Frames,
         DeepSearchQA,
