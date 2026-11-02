@@ -182,6 +182,38 @@ def load_widesearch() -> list[Task]:
     return tasks
 
 
+ATLAS_REPO_ID = "exa-ai/ATLAS"
+ATLAS_REVISION = "285cd58cc596d0264078cb562e708dcb1fc0b50a"
+ATLAS_FILENAME = "atlas-2026-10.jsonl"
+ATLAS_ROW_COUNT = 547
+
+
+def atlas_tasks(rows: list[dict[str, Any]]) -> list[Task]:
+    """Decrypt each record in memory, as BrowseComp's are: ``question`` and ``gold`` (the
+    columns, grading criteria, gold rows and annotations) are XOR-encrypted with the
+    record's canary string, so neither appears as plain text in the released file."""
+    return [
+        Task(
+            id=row["id"],
+            problem=decrypt(row["question"], row["canary"]),
+            answer=json.loads(decrypt(row["gold"], row["canary"])),
+        )
+        for row in rows
+    ]
+
+
+def load_atlas() -> list[Task]:
+    """Fetch the pinned JSONL through the Hugging Face cache and decrypt it in memory.
+
+    The dataset is gated: accept its terms on Hugging Face, then log in
+    (``hf auth login``) or set ``HF_TOKEN``.
+    """
+    path = hf_file(ATLAS_REPO_ID, ATLAS_FILENAME, ATLAS_REVISION)
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+    require_count("atlas", len(rows), ATLAS_ROW_COUNT)
+    return atlas_tasks(rows)
+
+
 _DATASETS = {
     "people": "people.jsonl",
     "company": "company.jsonl",

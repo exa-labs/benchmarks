@@ -13,9 +13,11 @@ from typing import Any
 
 import httpx
 import pytest
+from huggingface_hub.errors import RepositoryNotFoundError
 from pydantic import BaseModel
 
 from benchmarks import get_suite
+from benchmarks.atlas import Atlas
 from benchmarks.graders.base import gather_judgments
 from harness import cli
 from harness import rag as rag_module
@@ -1277,6 +1279,20 @@ def test_cli_publication_needs_no_judge_key(monkeypatch):
         ]
     )
     assert cli.cmd_run(args) == 0
+
+
+def test_cli_all_skips_a_gated_suite_without_access(monkeypatch):
+    monkeypatch.setenv("EXA_API_KEY", "test")
+    response = httpx.Response(401, request=httpx.Request("GET", "https://huggingface.co"))
+
+    def no_access(self):
+        raise RepositoryNotFoundError("401", response=response)
+
+    monkeypatch.setattr(Atlas, "load", no_access)
+    monkeypatch.setattr(cli, "list_suites", lambda: ["atlas", "publication"])
+    run = ["run", "--system", "search-exa-publication", "--limit", "1", "--dry-run", "--suite"]
+    assert cli.cmd_run(cli.build_parser().parse_args([*run, "all"])) == 0
+    assert cli.cmd_run(cli.build_parser().parse_args([*run, "atlas"])) == 2
 
 
 def test_mixed_legacy_company_tracks_accept_model_override(monkeypatch):

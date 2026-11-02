@@ -1,6 +1,6 @@
 # Exa Search Benchmarks
 
-Open datasets and a shared evaluation harness for search APIs, with 11 runnable
+Open datasets and a shared evaluation harness for search APIs, with 12 runnable
 suites across the Exa datasets and four public benchmarks below.
 
 **Scout evaluates search tools on agentic tasks.** It swaps Exa, Perplexity,
@@ -23,6 +23,12 @@ cost reporting and 95% bootstrap confidence intervals.
 | [People Search](data/people.jsonl) · [blog](https://exa.ai/blog/people-search-benchmark) | 1,400 | Retrieval | Find profiles by role, location and seniority |
 | [Company Search](data/company.jsonl) · [blog](https://exa.ai/blog/company-search-benchmarks) | 839 | Retrieval, RAG | Find companies and extract facts |
 | [Publication Retrieval](data/publication.jsonl) · [blog](https://exa.ai/blog/publications-search) | 1,866 | Publication, ToT | Find papers from questions or tip-of-the-tongue recollections |
+| [ATLAS](https://huggingface.co/datasets/exa-ai/ATLAS) · [blog](https://exa.ai/blog/atlas-benchmark) | 547 | Table | Find every entity that meets a set of conditions, then research its attributes |
+
+ATLAS is gated on Hugging Face: accept its terms, then run `hf auth login` or set
+`HF_TOKEN`. Systems answer each task with one Markdown table; row F1 is the primary
+metric. See the [grader README](benchmarks/graders/atlas/README.md) for the grading steps
+and metrics.
 
 WebCode has 557 runnable QA tasks. Its 250 [Contents](data/webcode/contents.jsonl)
 records and 33 [E2E](data/webcode/e2e.jsonl) tasks are dataset-only exports:
@@ -138,7 +144,7 @@ pinned revisions by [`data/loaders.py`](data/loaders.py):
 | `widesearch` | 200 | [ByteDance WideSearch](https://huggingface.co/datasets/ByteDance-Seed/WideSearch) |
 
 Use Scout or single-step RAG for these suites. `uv run bench download` fetches all
-data up front. To preflight all 11 runnable suites with compatible Exa systems:
+data up front. To preflight all 12 runnable suites with compatible Exa systems:
 
 ```bash
 uv run bench run --suite all \
@@ -146,7 +152,8 @@ uv run bench run --suite all \
   --limit 1 --dry-run
 ```
 
-Remove `--dry-run` to execute; remove `--limit` for the full datasets.
+Remove `--dry-run` to execute; remove `--limit` for the full datasets. `--suite all` skips
+ATLAS until you have access to its gated dataset.
 
 ## Systems and Models
 
@@ -180,7 +187,7 @@ uv run bench run --suite frames --system scout-tavily-advanced --limit 5
 
 | Role | Default model |
 |------|---------------|
-| Scout | `openai/gpt-6-astra` |
+| Scout | `openai/gpt-6-luna` |
 | Judge | `openai/gpt-6-luna` |
 | RAG / Extract + RAG answering | `openai/gpt-5.6-luna` |
 | `openai-native-search` | `openai/gpt-6-astra` |
@@ -222,5 +229,5 @@ Add providers through [`harness/searchers/`](harness/searchers/) and
 ## License
 
 MIT. Upstream datasets retain their own terms: BrowseComp is MIT, FRAMES and
-DeepSearchQA are Apache-2.0, and WideSearch data is CC0-1.0. BrowseComp is decrypted
-only in memory; do not republish its decrypted questions or answers.
+DeepSearchQA are Apache-2.0, WideSearch data is CC0-1.0, and ATLAS is MIT. BrowseComp and
+ATLAS are decrypted only in memory; do not republish their decrypted questions or answers.
