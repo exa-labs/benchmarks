@@ -66,6 +66,14 @@ provider = "brave"
 provider = "tavily"
 search_depth = "advanced"
 
+[searchers.kagi-search]
+provider = "kagi"
+
+[searchers.kagi-search-contents]
+provider = "kagi"
+extract_count = 10
+max_characters = 4000
+
 [systems.scout-exa-instant-highlights]
 kind = "scout"
 searcher = "exa-instant-highlights"
@@ -198,6 +206,30 @@ searcher = "tavily-advanced"
 kind = "search"
 searcher = "tavily-advanced"
 
+[systems.scout-kagi-search]
+kind = "scout"
+searcher = "kagi-search"
+
+[systems.rag-kagi-search]
+kind = "rag"
+searcher = "kagi-search"
+
+[systems.search-kagi-search]
+kind = "search"
+searcher = "kagi-search"
+
+[systems.scout-kagi-search-contents]
+kind = "scout"
+searcher = "kagi-search-contents"
+
+[systems.rag-kagi-search-contents]
+kind = "rag"
+searcher = "kagi-search-contents"
+
+[systems.search-kagi-search-contents]
+kind = "search"
+searcher = "kagi-search-contents"
+
 [systems.openai-native-search]
 kind = "scout"
 model = "openai/gpt-6-astra"
@@ -225,6 +257,9 @@ site_filter = "linkedin.com/in"
 [searchers.parallel-people]
 provider = "parallel"
 source_policy = { include_domains = ["linkedin.com"] }
+[searchers.kagi-academic]
+provider = "kagi"
+lens_id = "academic"
 [searchers.exa-webcode]
 provider = "exa"
 type = "fast"
@@ -237,6 +272,8 @@ max_age_hours = 0
 [searchers.parallel-extract]
 provider = "parallel"
 excerpt_max_chars = 4000
+[searchers.kagi-extract]
+provider = "kagi"
 [searchers.claude-extract]
 provider = "claude"
 tool_version = "web_fetch_20260209"
@@ -277,6 +314,14 @@ searcher = "exa-extract"
 [systems.extract-rag-parallel-extract]
 kind = "extract-rag"
 searcher = "parallel-extract"
+
+[systems.search-kagi-academic]
+kind = "search"
+searcher = "kagi-academic"
+
+[systems.extract-rag-kagi-extract]
+kind = "extract-rag"
+searcher = "kagi-extract"
 
 [systems.extract-rag-claude-extract]
 kind = "extract-rag"

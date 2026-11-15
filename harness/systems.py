@@ -24,6 +24,7 @@ from harness.searchers import (
     BraveSearcher,
     ClaudeWebFetchSearcher,
     ExaSearcher,
+    KagiSearcher,
     ParallelSearcher,
     PerplexitySearcher,
     Searcher,
@@ -64,6 +65,8 @@ def build_searcher(provider: str, options: dict[str, Any]) -> Searcher:
         return PerplexitySearcher(**options)
     if provider == "tavily":
         return TavilySearcher(**options)
+    if provider == "kagi":
+        return KagiSearcher(**options)
     if provider == "claude":
         return ClaudeWebFetchSearcher(**options)
     raise ValueError(f"unknown search provider {provider!r}")
