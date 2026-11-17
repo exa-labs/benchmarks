@@ -231,7 +231,10 @@ class GroundedRAGGrader(BaseLLMGrader):
         citation_precision = float(len(matching_urls)) / num_citations if num_citations > 0 else 0.0
 
         encoding = tiktoken.get_encoding("o200k_base")
-        citation_token_counts = [len(encoding.encode(c.text)) for c in citations]
+        # Page text may mention special tokens such as <|endoftext|>; count them as text.
+        citation_token_counts = [
+            len(encoding.encode(c.text, disallowed_special=())) for c in citations
+        ]
         avg_citation_tokens = (
             sum(citation_token_counts) / len(citation_token_counts)
             if citation_token_counts
