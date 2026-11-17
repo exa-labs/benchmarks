@@ -49,6 +49,7 @@ PROVIDER_KEYS = {
     "parallel": ("PARALLEL_API_KEY", "PARALLELS_API_KEY"),
     "perplexity": ("PERPLEXITY_API_KEY",),
     "tavily": ("TAVILY_API_KEY",),
+    "kagi": ("KAGI_API_KEY",),
     "claude": ("ANTHROPIC_API_KEY",),
 }
 

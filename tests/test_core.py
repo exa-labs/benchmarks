@@ -43,6 +43,7 @@ from harness.scout import (
 from harness.searchers import (
     BraveSearcher,
     ExaSearcher,
+    KagiSearcher,
     ParallelSearcher,
     PerplexitySearcher,
     Searcher,
@@ -443,6 +444,187 @@ def test_tavily_catalog_and_credentials(monkeypatch, kind):
 @pytest.mark.parametrize("track,kind", [("retrieval", "search"), ("rag", "rag")])
 def test_legacy_tavily_alias(family, track, kind):
     assert system_name(family, track, "tavily") == f"{kind}-tavily-advanced"
+
+
+async def test_kagi_request_and_response():
+    seen = {}
+    queries = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        seen["auth"] = request.headers["Authorization"]
+        seen["body"] = json.loads(request.content)
+        queries.append(seen["body"]["query"])
+        if '"' in seen["body"]["query"]:
+            return httpx.Response(200, json={"data": {"search": []}})
+        rows = [
+            {
+                "url": "https://a",
+                "title": "China&#39;s air",
+                "snippet": "a <strong>term</strong> in List<String>",
+                "time": "2026-01-01T00:00:00Z",
+                "props": {"group_id": "a"},
+            },
+            {"url": "https://b", "title": "B"},
+        ]
+        return httpx.Response(200, json={"meta": {"trace": "t1"}, "data": {"search": rows}})
+
+    searcher = KagiSearcher(api_key="k")
+    await searcher.close()
+    searcher._client = mock_client(handler)
+    try:
+        response = await searcher.run('on \u201cexact\u201d "phrase"', 2)
+    finally:
+        await searcher.close()
+    assert seen == {
+        "url": "https://kagi.com/api/v1/search",
+        "auth": "Bearer k",
+        "body": {"query": "on exact phrase", "limit": 2},
+    }
+    assert queries == ['on \u201cexact\u201d "phrase"', "on exact phrase"]
+    assert response.cost_usd == pytest.approx(2 * 0.012)
+    assert response.request_id == "t1" and response.queries == ["on exact phrase"]
+    assert [row.title for row in response.results] == ["China's air", "B"]
+    assert [row.text for row in response.results] == ["a term in List<String>", ""]
+    assert response.results[0].metadata == {
+        "rank": 0,
+        "published_date": "2026-01-01T00:00:00Z",
+        "group_id": "a",
+    }
+
+
+@pytest.mark.parametrize(
+    "options,extra,cost",
+    [
+        ({}, {}, 0.012),
+        ({"lens_id": "academic"}, {"lens_id": "academic"}, 0.012),
+        ({"extract_count": 10, "max_characters": 20}, {"extract": {"count": 5}}, 0.024),
+    ],
+)
+async def test_kagi_limits_and_cost(options, extra, cost):
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        rows = [{"url": f"https://{i}", "snippet": "x" * 50} for i in range(3)]
+        return httpx.Response(200, json={"data": {"search": rows}})
+
+    searcher = KagiSearcher(api_key="k", **options)
+    await searcher.close()
+    searcher._client = mock_client(handler)
+    try:
+        response = await searcher.run("q", 5)
+    finally:
+        await searcher.close()
+    assert seen == {"query": "q", "limit": 5, **extra}
+    assert [len(row.text) for row in response.results] == [options.get("max_characters", 50)] * 3
+    assert response.cost_usd == pytest.approx(cost)
+    with pytest.raises(ValueError, match="at least 1"):
+        searcher.search_payload("q", 0)
+
+
+@pytest.mark.parametrize(
+    "pages,expected",
+    [
+        (
+            [{"url": "https://a/doc", "markdown": "# Doc\nmore text"}],
+            [("https://a/doc", "# Doc\nmore")],
+        ),
+        ([{"url": "https://a/doc", "error": "timeout"}], []),
+    ],
+)
+async def test_kagi_extract(pages, expected):
+    seen = {}
+
+    def handler(request):
+        seen[str(request.url)] = json.loads(request.content)
+        return httpx.Response(200, json={"data": pages})
+
+    searcher = KagiSearcher(api_key="k", max_characters=10)
+    await searcher.close()
+    searcher._client = mock_client(handler)
+    try:
+        results = await searcher.extract("https://a/doc", "ignored question")
+    finally:
+        await searcher.close()
+    assert seen == {"https://kagi.com/api/v1/extract": {"pages": [{"url": "https://a/doc"}]}}
+    assert [(row.url, row.text) for row in results] == expected
+
+
+@pytest.mark.parametrize("status", [429, 503])
+async def test_kagi_retries_transient_errors(monkeypatch, status):
+    attempts = []
+
+    def handler(request):
+        attempts.append(request)
+        return httpx.Response(status if len(attempts) == 1 else 200, json={"data": {}})
+
+    async def no_sleep(_):
+        pass
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    searcher = KagiSearcher(api_key="k", max_attempts=2)
+    await searcher.close()
+    searcher._client = mock_client(handler)
+    try:
+        assert await searcher.search("q") == []
+    finally:
+        await searcher.close()
+    assert len(attempts) == 2
+
+
+@pytest.mark.parametrize(
+    "status,errors,max_attempts",
+    [(401, None, 4), (402, None, 4), (429, [{"code": "general.usage_limt"}], 4), (503, None, 1)],
+)
+async def test_kagi_propagates_api_errors(status, errors, max_attempts):
+    attempts = []
+
+    def handler(request):
+        attempts.append(request)
+        return httpx.Response(status, json={"data": None, "errors": errors})
+
+    searcher = KagiSearcher(api_key="k", max_attempts=max_attempts)
+    await searcher.close()
+    searcher._client = mock_client(handler)
+    try:
+        with pytest.raises(httpx.HTTPStatusError):
+            await searcher.run("q")
+    finally:
+        await searcher.close()
+    assert len(attempts) == 1
+
+
+@pytest.mark.parametrize(
+    "kinds,preset,options",
+    [
+        (["scout", "rag", "search"], "kagi-search", {}),
+        (
+            ["scout", "rag", "search"],
+            "kagi-search-contents",
+            {"extract_count": 10, "max_characters": 4000},
+        ),
+        (["search"], "kagi-academic", {"lens_id": "academic"}),
+        (["extract-rag"], "kagi-extract", {}),
+    ],
+)
+def test_kagi_catalog_and_credentials(monkeypatch, kinds, preset, options):
+    monkeypatch.delenv("KAGI_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    specs = [Catalog.load().resolve(f"{kind}-{preset}") for kind in kinds]
+    for spec in specs:
+        assert spec.searcher == {"name": preset, "provider": "kagi", **options}
+        assert cli.missing_credentials(spec, None) == ["KAGI_API_KEY"]
+    with pytest.raises(ValueError, match="KAGI_API_KEY required"):
+        KagiSearcher()
+    monkeypatch.setenv("KAGI_API_KEY", "test")
+    assert all(cli.missing_credentials(spec, None) == [] for spec in specs)
+
+
+@pytest.mark.parametrize("family", ["people", "company", "publication"])
+@pytest.mark.parametrize("track,kind", [("retrieval", "search"), ("rag", "rag")])
+def test_legacy_kagi_alias(family, track, kind):
+    assert system_name(family, track, "kagi") == f"{kind}-kagi-search"
 
 
 # --------------------------------------------------------------------------- tools
@@ -950,6 +1132,7 @@ async def test_every_catalog_system_builds(monkeypatch):
         "PARALLEL_API_KEY",
         "PERPLEXITY_API_KEY",
         "TAVILY_API_KEY",
+        "KAGI_API_KEY",
     ):
         monkeypatch.setenv(name, "test")
     catalog = Catalog.load()
@@ -1149,6 +1332,8 @@ def test_scout_catalog_contains_exactly_the_requested_api_presets():
         "parallel-advanced",
         "brave-llm-context",
         "tavily-advanced",
+        "kagi-search",
+        "kagi-search-contents",
     }
 
 
