@@ -628,6 +628,24 @@ async def test_webcode_grades_actual_result_citations(name):
     assert "https://evidence" in judge.prompts[1][1]
 
 
+async def test_webcode_counts_special_token_text_in_citations():
+    judge = FakeJudge(
+        {"reasoning": "same answer", "correctness": "CORRECT"},
+        {
+            "evidence": "42",
+            "reasoning": "explicit",
+            "groundedness": "GROUNDED",
+            "source_indices": [1],
+        },
+    )
+    citations = [{"url": "https://docs", "title": "docs", "text": "ends with <|endoftext|>: 42"}]
+    grade = await get_suite("webcode-highlights").grade_result(
+        Task("code", "question", "42"), {"answer": "42", "citations": citations}, judge
+    )
+    assert grade.scores["grounded"] == 1
+    assert grade.scores["avg_citation_tokens"] > 0
+
+
 def test_webcode_exports_remain_dataset_only():
     assert len(loaders.load_rows("webcode-e2e")) == 33
     assert "webcode-e2e" not in list_suites()
