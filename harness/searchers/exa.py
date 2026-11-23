@@ -3,7 +3,10 @@
 ``search_type`` selects the retrieval mode (``instant``, ``fast``, ``auto``,
 ``neural``, ``keyword``); ``contents`` is sent verbatim as the request's
 contents object when given (for example ``{"highlights": True}``), otherwise it
-is built from the ``include_text`` / ``include_highlights`` switches. Cost is the
+is built from the ``include_text`` / ``include_highlights`` switches.
+``exclude_domains`` is sent as ``excludeDomains``: hostnames (``example.com``),
+path prefixes (``example.com/docs``) or wildcard subdomains (``*.example.com``)
+that never appear in results. Cost is the
 ``costDollars.total`` the API reports, falling back to published list prices.
 
 API reference: https://exa.ai/docs/reference/search
@@ -22,6 +25,30 @@ from .base import Searcher, SearchResponse, SearchResult
 EXA_SEARCH_COST_PER_REQUEST = 0.007
 EXA_COST_PER_EXTRA_RESULT = 0.001
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+# https://exa.ai/docs/reference/search#body-exclude-domains-one-of-0
+EXA_MAX_EXCLUDE_DOMAINS = 1200
+# Categories whose searches reject ``excludeDomains`` with a 400.
+EXA_CATEGORIES_WITHOUT_EXCLUDE_DOMAINS = frozenset({"people"})
+
+
+def normalize_exclude_domains(domains: list[str] | None, category: str | None = None) -> list[str]:
+    """Validate ``excludeDomains`` entries; return them stripped, deduplicated and sorted.
+
+    Sorting keeps the resolved system spec, and so the run directory hash,
+    independent of the order the domains were given in.
+    """
+    if not domains:
+        return []
+    if isinstance(domains, str) or not all(isinstance(d, str) for d in domains):
+        raise ValueError("exclude_domains must be a list of domain strings")
+    cleaned = sorted({d.strip() for d in domains if d.strip()})
+    if len(cleaned) > EXA_MAX_EXCLUDE_DOMAINS:
+        raise ValueError(
+            f"Exa accepts at most {EXA_MAX_EXCLUDE_DOMAINS} excludeDomains; got {len(cleaned)}"
+        )
+    if cleaned and category in EXA_CATEGORIES_WITHOUT_EXCLUDE_DOMAINS:
+        raise ValueError(f"Exa's {category!r} category does not support excludeDomains")
+    return cleaned
 
 
 class ExaSearcher(Searcher):
@@ -40,6 +67,7 @@ class ExaSearcher(Searcher):
         livecrawl_timeout: int = 30000,
         extract_mode: str = "text",
         contents: dict[str, Any] | None = None,
+        exclude_domains: list[str] | None = None,
         max_attempts: int = 5,
         timeout: float = 120.0,
     ):
@@ -57,6 +85,7 @@ class ExaSearcher(Searcher):
         self.livecrawl_timeout = livecrawl_timeout
         self.extract_mode = extract_mode
         self.contents = contents
+        self.exclude_domains = normalize_exclude_domains(exclude_domains, category)
         self.max_attempts = max_attempts
         self._client = httpx.AsyncClient(timeout=timeout)
 
@@ -69,6 +98,8 @@ class ExaSearcher(Searcher):
         }
         if self.category:
             payload["category"] = self.category
+        if self.exclude_domains:
+            payload["excludeDomains"] = list(self.exclude_domains)
 
         if self.contents is not None:
             payload["contents"] = dict(self.contents)

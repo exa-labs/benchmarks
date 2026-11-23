@@ -62,6 +62,9 @@ def legacy_main(family: str, argv: list[str] | None = None) -> None:
         parser.add_argument("--track", choices=("paper", "tot"))
     if family in ("people", "company"):
         parser.add_argument("--enrich-exa-contents", action="store_true")
+    if family in ("company", "publication"):  # Exa people search rejects excludeDomains
+        parser.add_argument("--exclude-domains", nargs="+", metavar="DOMAIN")
+        parser.add_argument("--exclude-domains-file", metavar="PATH")
     args = parser.parse_args(argv)
     if family == "company":
         tracks = [args.track] if args.track else ["retrieval", "rag"]
@@ -88,12 +91,15 @@ def legacy_main(family: str, argv: list[str] | None = None) -> None:
         "runs_dir",
         "run_suffix",
         "split",
+        "exclude_domains_file",
     ):
         value = getattr(args, name, None)
         if value is not None:
             if name in ("judge_model", "model") and "/" not in value:
                 value = f"openai/{value}"
             forwarded.extend(["--" + name.replace("_", "-"), str(value)])
+    if getattr(args, "exclude_domains", None):
+        forwarded.extend(["--exclude-domains", *args.exclude_domains])
     for name in ("enrich_exa_contents", "dry_run"):
         if getattr(args, name, False):
             forwarded.append("--" + name.replace("_", "-"))

@@ -29,7 +29,7 @@ from harness.llm.clients import ModelClient
 from harness.llm.judge import Judge, JudgeOutputError, track_judge_usage
 from harness.llm.pricing import model_price, token_cost
 from harness.llm.types import ContextWindowExceeded, Generation, HostedSearch, ToolCall, Usage
-from harness.runner import Runner, load_summary_outcomes, summarize
+from harness.runner import Runner, load_summary_outcomes, run_directory, summarize
 from harness.scout import (
     BUDGET_WARNING,
     FINAL_SYNTHESIS_PROMPT,
@@ -156,6 +156,37 @@ async def test_exa_request_shape_and_reported_cost():
     }
     assert response.cost_usd == 0.012 and response.request_id == "r1"
     assert response.results[0].evidence == "h1\nh2"
+
+
+async def test_exa_sends_exclude_domains():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"results": []})
+
+    searcher = ExaSearcher(
+        api_key="k",
+        contents={"highlights": True},
+        exclude_domains=[" huggingface.co ", "*.example.com", "huggingface.co", ""],
+    )
+    searcher._client = mock_client(handler)
+    await searcher.run("q")
+    assert seen["body"]["excludeDomains"] == ["*.example.com", "huggingface.co"]
+    assert "excludeDomains" not in ExaSearcher(api_key="k").search_payload("q", 10)
+
+
+@pytest.mark.parametrize(
+    "domains,category,message",
+    [
+        ("example.com", None, "list of domain strings"),
+        ([f"d{i}.com" for i in range(1201)], None, "at most 1200"),
+        (["example.com"], "people", "does not support excludeDomains"),
+    ],
+)
+def test_exa_rejects_invalid_exclude_domains(domains, category, message):
+    with pytest.raises(ValueError, match=message):
+        ExaSearcher(api_key="k", category=category, exclude_domains=domains)
 
 
 async def test_exa_list_price_when_cost_not_reported():
@@ -1293,6 +1324,75 @@ def test_cli_all_skips_a_gated_suite_without_access(monkeypatch):
     run = ["run", "--system", "search-exa-publication", "--limit", "1", "--dry-run", "--suite"]
     assert cli.cmd_run(cli.build_parser().parse_args([*run, "all"])) == 0
     assert cli.cmd_run(cli.build_parser().parse_args([*run, "atlas"])) == 2
+
+
+def test_cli_exclude_domains_reach_the_exa_searcher_and_the_run_hash(tmp_path, monkeypatch):
+    monkeypatch.setenv("EXA_API_KEY", "test")
+    domains_file = tmp_path / "exclude.txt"
+    domains_file.write_text("# leaked answers\nhuggingface.co\n\nexample.com/docs  # path\n")
+    args = cli.build_parser().parse_args(
+        [
+            "run",
+            "--suite",
+            "publication",
+            "--system",
+            "search-exa-publication",
+            "--exclude-domains",
+            "*.example.org",
+            "--exclude-domains-file",
+            str(domains_file),
+            "--dry-run",
+        ]
+    )
+    assert cli.requested_exclude_domains(args) == [
+        "*.example.org",
+        "huggingface.co",
+        "example.com/docs",
+    ]
+    assert cli.cmd_run(args) == 0
+    base = Catalog.load().resolve("search-exa-publication")
+    spec = cli.with_exclude_domains(base, cli.requested_exclude_domains(args))
+    assert spec.searcher["exclude_domains"] == [
+        "*.example.org",
+        "example.com/docs",
+        "huggingface.co",
+    ]
+    assert base.searcher.get("exclude_domains") is None
+    assert run_directory(tmp_path, spec, EchoSuite(), "j", None) != run_directory(
+        tmp_path, base, EchoSuite(), "j", None
+    )
+    options = {k: v for k, v in spec.searcher.items() if k not in ("name", "provider")}
+    built = system_module.build_searcher("exa", options)
+    assert built.search_payload("q", 10)["excludeDomains"] == spec.searcher["exclude_domains"]
+
+
+@pytest.mark.parametrize(
+    "system,message",
+    [
+        ("rag-brave-llm-context", "only supported for Exa"),
+        ("openai-native-search", "not hosted search"),
+        ("search-exa-people", "does not support excludeDomains"),
+    ],
+)
+def test_cli_exclude_domains_rejects_unsupported_systems(monkeypatch, capsys, system, message):
+    for key in ("EXA_API_KEY", "BRAVE_SEARCH_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.setenv(key, "test")
+    suite = "people" if system == "search-exa-people" else "frames"
+    args = cli.build_parser().parse_args(
+        ["run", "--suite", suite, "--system", system, "--limit", "1", "--dry-run"]
+        + ["--exclude-domains", "example.com"]
+    )
+    monkeypatch.setattr(get_suite(suite).__class__, "load", lambda self: [Task("t", "q", "a")])
+    assert cli.cmd_run(args) == 2
+    assert message in capsys.readouterr().out
+
+
+def test_legacy_forwards_exclude_domains(monkeypatch):
+    forwarded = []
+    monkeypatch.setattr("harness.legacy.main", forwarded.extend)
+    legacy_main("publication", ["--exclude-domains", "a.com", "b.com", "--dry-run"])
+    assert forwarded[forwarded.index("--exclude-domains") + 1 :][:2] == ["a.com", "b.com"]
+    assert "--dry-run" in forwarded
 
 
 def test_mixed_legacy_company_tracks_accept_model_override(monkeypatch):
