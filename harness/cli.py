@@ -6,6 +6,8 @@ Examples::
     uv run bench download --suite browsecomp
     uv run bench run --system scout-exa-auto-highlights --suite browsecomp --limit 5
     uv run bench run --system scout-brave-llm-context --model anthropic/claude-sonnet-5 --suite dsqa
+    uv run bench run --system scout-exa-auto-highlights --suite browsecomp \
+        --exclude-domains huggingface.co github.com/openai/simple-evals
     uv run bench summary results/runs/scout-exa-auto-highlights-browsecomp-1a2b3c4d5e
 """
 
@@ -37,6 +39,7 @@ from harness.runner import (
     summarize,
     write_json,
 )
+from harness.searchers.exa import normalize_exclude_domains
 from harness.systems import DEFAULT_CATALOG, Catalog, SystemSpec
 
 console = Console()
@@ -66,6 +69,37 @@ def missing_credentials(spec: SystemSpec, judge_model: str | None) -> list[str]:
         if not any(os.environ.get(name) for name in names):
             missing.append(" or ".join(names))
     return missing
+
+
+def requested_exclude_domains(args: argparse.Namespace) -> list[str]:
+    """Collect ``--exclude-domains`` values and ``--exclude-domains-file`` lines."""
+    domains = list(getattr(args, "exclude_domains", None) or [])
+    path = getattr(args, "exclude_domains_file", None)
+    if path:
+        for line in Path(path).read_text().splitlines():
+            line = line.split("#", 1)[0].strip()
+            if line:
+                domains.append(line)
+    return domains
+
+
+def with_exclude_domains(spec: SystemSpec, domains: list[str]) -> SystemSpec:
+    """Add Exa ``excludeDomains`` to a system's searcher, merged with catalog entries.
+
+    Only Exa searchers accept the filter. Other systems are rejected rather than
+    run unfiltered, so a comparison never mixes filtered and unfiltered backends.
+    """
+    if spec.searcher is None:
+        raise ValueError(f"{spec.name}: --exclude-domains needs an Exa searcher, not hosted search")
+    if spec.searcher["provider"] != "exa":
+        raise ValueError(
+            f"{spec.name}: --exclude-domains is only supported for Exa searchers, "
+            f"not {spec.searcher['provider']}"
+        )
+    searcher = dict(spec.searcher)
+    merged = [*searcher.get("exclude_domains", []), *domains]
+    searcher["exclude_domains"] = normalize_exclude_domains(merged, searcher.get("category"))
+    return replace(spec, searcher=searcher)
 
 
 def cmd_list(args: argparse.Namespace) -> int:
@@ -136,6 +170,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     catalog = Catalog.load(args.catalog)
     names = select_names(args.system, list(catalog.systems), "systems")
     suites = [get_suite(name) for name in select_names(args.suite, list_suites(), "suites")]
+    exclude_domains = requested_exclude_domains(args)
     plan = []
     errors = []
     for suite in suites:
@@ -171,6 +206,11 @@ def cmd_run(args: argparse.Namespace) -> int:
                     continue
                 settings["enrich_exa_contents"] = True
             spec = replace(spec, settings=settings)
+            if exclude_domains:
+                try:
+                    spec = with_exclude_domains(spec, exclude_domains)
+                except ValueError as error:  # still compatible; the plan just cannot run
+                    errors.append(str(error))
             missing = missing_credentials(spec, args.judge_model if suite.requires_judge else None)
             if missing:
                 errors.append(f"{name} × {suite.name}: missing {', '.join(missing)}")
@@ -289,6 +329,18 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--num-results", type=positive_int)
     run.add_argument("--split", choices=("static", "dynamic"))
     run.add_argument("--enrich-exa-contents", action="store_true")
+    run.add_argument(
+        "--exclude-domains",
+        nargs="+",
+        metavar="DOMAIN",
+        help="Exa excludeDomains: hostnames, path prefixes (example.com/docs) "
+        "or wildcards (*.example.com); Exa searchers only",
+    )
+    run.add_argument(
+        "--exclude-domains-file",
+        metavar="PATH",
+        help="file of excludeDomains entries, one per line (# starts a comment)",
+    )
     run.add_argument("--output", "-o", help="write aggregate summaries as JSON")
     run.add_argument(
         "--dry-run", action="store_true", help="preflight all pairs without paid calls"

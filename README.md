@@ -185,6 +185,26 @@ export TAVILY_API_KEY=...
 uv run bench run --suite frames --system scout-tavily-advanced --limit 5
 ```
 
+### Excluding domains
+
+Exa searchers accept [`excludeDomains`](https://exa.ai/docs/reference/search#body-exclude-domains-one-of-0),
+for example to keep pages that republish a benchmark's answers out of results. Pass
+hostnames, path prefixes (`example.com/docs`) or wildcard subdomains (`*.example.com`),
+up to 1,200 entries:
+
+```bash
+uv run bench run --suite browsecomp --system scout-exa-auto-highlights \
+  --exclude-domains huggingface.co '*.example.com'
+uv run bench run --suite frames --system rag-exa-auto-highlights \
+  --exclude-domains-file exclude.txt   # one entry per line; # starts a comment
+uv run pubbench --exclude-domains arxiv.org --limit 50   # cbench accepts it too
+```
+
+The flags merge with any `exclude_domains = [...]` already set on a searcher in
+`systems.toml`. They are part of the run's hashed config, so filtered and unfiltered
+runs never share a directory. Preflight rejects non-Exa searchers, hosted-search
+systems and Exa's `people` category, which does not support the filter.
+
 | Role | Default model |
 |------|---------------|
 | Scout | `openai/gpt-6-luna` |
