@@ -19,6 +19,7 @@ from benchmarks import (
     list_suites,
     widesearch,
 )
+from benchmarks.graders.atlas import normalize as atlas_normalize
 from benchmarks.graders.base import JudgeSpend
 from data import loaders
 from data.sources import SourceError, csv_rows, fetch_verified, require_count
@@ -55,6 +56,7 @@ class FakeJudge:
 
 def test_registry_lists_every_suite_with_a_revision() -> None:
     assert list_suites() == [
+        "atlas",
         "browsecomp",
         "company-rag",
         "company-retrieval",
@@ -279,6 +281,96 @@ async def test_dsqa_grade_retries_then_scores_and_sums_cost() -> None:
 
     with pytest.raises(JudgeOutputError, match="dsqa rating"):
         await get_suite("dsqa").grade(task, "A", FakeJudge("x", "y", "z"))
+
+
+# ---------------------------------------------------------------------------
+# ATLAS
+# ---------------------------------------------------------------------------
+
+
+def test_atlas_normalizes_scalars() -> None:
+    assert atlas_normalize.normalize_number("1,200") == atlas_normalize.normalize_number("1200")
+    assert atlas_normalize.normalize_number("5%") == atlas_normalize.normalize_number("0.05")
+    assert atlas_normalize.normalize_date("March 5, 2021") == atlas_normalize.normalize_date(
+        "2021-03-05"
+    )
+    assert atlas_normalize.normalize_date("2021") != atlas_normalize.normalize_date("2021-03-05")
+    assert atlas_normalize.normalize_date("N/A") == atlas_normalize.normalize_date("")
+
+
+def test_atlas_record_decrypts_in_memory() -> None:
+    gold = {
+        "key_column": "Company",
+        "columns": [{"name": "Company", "type": "text"}],
+        "rows": [["Acme"]],
+    }
+    row = {
+        "id": "atlas-0001",
+        "question": _encrypt_browsecomp("List companies.", "canary"),
+        "gold": _encrypt_browsecomp(json.dumps(gold), "canary"),
+        "canary": "canary",
+    }
+    (task,) = loaders.atlas_tasks([row])
+    assert task.problem == "List companies."
+    assert task.answer == gold
+
+
+async def test_atlas_grades_aliases_optional_rows_and_judge_votes() -> None:
+    answer = {
+        "key_column": "Company",
+        "columns": [
+            {"name": "Company", "type": "text", "criterion": None},
+            {"name": "Founded", "type": "number", "criterion": None},
+            {"name": "CEO", "type": "text", "criterion": "Full name."},
+        ],
+        "rows": [
+            ["Acme Corp", "1999", "Jane Q. Doe"],
+            ["Globex", "2001", "Hank Scorpio"],
+            ["Initech", "1990", "Bill Lumbergh"],
+        ],
+        "optional_entities": ["Initech"],
+        "entity_aliases": [{"entity": "Globex", "aliases": ["Globex Corporation"]}],
+    }
+    response = (
+        "| Company | Founded | CEO |\n|---|---|---|\n"
+        "| Acme Corp | 1,999 | jane q. doe |\n"
+        "| Globex Corporation | 2001 | H. Scorpio |\n"
+        "| Initech | 1990 | Bill Lumbergh |\n"
+    )
+    # The CEO cell goes to the judge: a first "0" is confirmed by two more votes.
+    judge = FakeJudge({"idx_0": 0}, {"idx_0": 1}, {"idx_0": 0})
+    grade = await get_suite("atlas").grade(Task("t", "q", answer), response, judge)
+
+    assert "Full name." in judge.prompts[0][1]
+    assert grade.scores["row_f1"] == pytest.approx(0.5)  # Acme right, Globex CEO wrong
+    assert grade.scores["row_precision"] == pytest.approx(0.5)  # Initech leaves both counts
+    assert grade.scores["item_f1"] == pytest.approx(5 / 6)
+    assert grade.scores["discovery_f1"] == 1.0  # Initech is optional
+    assert grade.scores["complete_pass"] == 0.0
+    assert grade.details["judge_calls"] == 3
+
+
+async def test_atlas_pairs_an_entity_named_twice_once() -> None:
+    answer = {
+        "key_column": "Company",
+        "columns": [
+            {"name": "Company", "type": "text", "criterion": None},
+            {"name": "Founded", "type": "number", "criterion": None},
+        ],
+        "rows": [["Acme Corp", "1999"], ["Globex", "2001"]],
+    }
+    response = (
+        "| Company | Founded |\n|---|---|\n"
+        "| Acme Corporation (US) | 1999 |\n"
+        "| ACME (rockets) | 1999 |\n"
+        "| Globex | 2001 |\n"
+    )
+    judge = FakeJudge({"Acme Corporation (US)": "Acme Corp", "ACME (rockets)": "Acme Corp"})
+    grade = await get_suite("atlas").grade(Task("t", "q", answer), response, judge)
+
+    assert grade.scores["row_recall"] == 1.0  # the first Acme row pairs with Acme Corp
+    assert grade.scores["row_precision"] == pytest.approx(2 / 3)  # the repeat is an extra row
+    assert grade.scores["discovery_f1"] == 1.0
 
 
 # ---------------------------------------------------------------------------
