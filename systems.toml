@@ -66,6 +66,14 @@ provider = "brave"
 provider = "tavily"
 search_depth = "advanced"
 
+[searchers.keenable-pro]
+provider = "keenable"
+mode = "pro"
+
+[searchers.keenable-realtime]
+provider = "keenable"
+mode = "realtime"
+
 [systems.scout-exa-instant-highlights]
 kind = "scout"
 searcher = "exa-instant-highlights"
@@ -197,6 +205,30 @@ searcher = "tavily-advanced"
 [systems.search-tavily-advanced]
 kind = "search"
 searcher = "tavily-advanced"
+
+[systems.scout-keenable-pro]
+kind = "scout"
+searcher = "keenable-pro"
+
+[systems.rag-keenable-pro]
+kind = "rag"
+searcher = "keenable-pro"
+
+[systems.search-keenable-pro]
+kind = "search"
+searcher = "keenable-pro"
+
+[systems.scout-keenable-realtime]
+kind = "scout"
+searcher = "keenable-realtime"
+
+[systems.rag-keenable-realtime]
+kind = "rag"
+searcher = "keenable-realtime"
+
+[systems.search-keenable-realtime]
+kind = "search"
+searcher = "keenable-realtime"
 
 [systems.openai-native-search]
 kind = "scout"
