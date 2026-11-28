@@ -445,13 +445,14 @@ def test_legacy_tavily_alias(family, track, kind):
 
 
 @pytest.mark.parametrize("mode", ["pro", "realtime"])
-async def test_keenable_request_and_response(mode):
+async def test_keenable_request_and_response(monkeypatch, mode):
+    monkeypatch.setenv("KEENABLE_API_KEY", "keen-test-key")
     seen = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen["url"] = str(request.url)
         seen["body"] = json.loads(request.content)
-        seen["title"] = request.headers["X-Keenable-Title"]
+        seen["key"] = request.headers["X-API-Key"]
         return httpx.Response(
             200,
             json={
@@ -481,8 +482,8 @@ async def test_keenable_request_and_response(mode):
     finally:
         await searcher.close()
     assert seen == {
-        "url": "https://api.keenable.ai/v1/search/public",
-        "title": "exa-benchmarks",
+        "url": "https://api.keenable.ai/v1/search",
+        "key": "keen-test-key",
         "body": {"query": "question", "mode": mode, "max_results": 10},
     }
     assert response.cost_usd == pytest.approx(0.008)
@@ -501,7 +502,8 @@ async def test_keenable_request_and_response(mode):
     "usage,cost",
     [(None, 0.004), ({}, 0.004), ({"credits": None}, 0.004), ({"credits": 0}, 0.0)],
 )
-async def test_keenable_limits_and_cost_without_usage(usage, cost):
+async def test_keenable_limits_and_cost_without_usage(monkeypatch, usage, cost):
+    monkeypatch.setenv("KEENABLE_API_KEY", "keen-test-key")
     seen = {}
 
     def handler(request):
@@ -526,6 +528,7 @@ async def test_keenable_limits_and_cost_without_usage(usage, cost):
 
 @pytest.mark.parametrize("status", [429, 529])
 async def test_keenable_retries_transient_errors(monkeypatch, status):
+    monkeypatch.setenv("KEENABLE_API_KEY", "keen-test-key")
     attempts = []
 
     def handler(request):
@@ -547,7 +550,8 @@ async def test_keenable_retries_transient_errors(monkeypatch, status):
 
 
 @pytest.mark.parametrize("status,max_attempts", [(401, 4), (400, 4), (529, 1)])
-async def test_keenable_propagates_api_errors(status, max_attempts):
+async def test_keenable_propagates_api_errors(monkeypatch, status, max_attempts):
+    monkeypatch.setenv("KEENABLE_API_KEY", "keen-test-key")
     attempts = []
 
     def handler(request):
@@ -565,6 +569,18 @@ async def test_keenable_propagates_api_errors(status, max_attempts):
     assert len(attempts) == 1
 
 
+async def test_keenable_requires_api_key(monkeypatch):
+    monkeypatch.delenv("KEENABLE_API_KEY", raising=False)
+    searcher = KeenableSearcher()
+    await searcher.close()
+    searcher._client = mock_client(lambda request: httpx.Response(200, json={"results": []}))
+    try:
+        with pytest.raises(RuntimeError, match="KEENABLE_API_KEY"):
+            await searcher.run("q")
+    finally:
+        await searcher.close()
+
+
 @pytest.mark.parametrize("kind", ["scout", "rag", "search"])
 @pytest.mark.parametrize("mode", ["pro", "realtime"])
 async def test_keenable_catalog_and_credentials(monkeypatch, kind, mode):
@@ -577,6 +593,8 @@ async def test_keenable_catalog_and_credentials(monkeypatch, kind, mode):
         "provider": "keenable",
         "mode": mode,
     }
+    assert cli.missing_credentials(spec, None) == ["KEENABLE_API_KEY"]
+    monkeypatch.setenv("KEENABLE_API_KEY", "keen-test-key")
     assert cli.missing_credentials(spec, None) == []
     await KeenableSearcher().close()
     with pytest.raises(ValueError, match="unsupported Keenable mode"):

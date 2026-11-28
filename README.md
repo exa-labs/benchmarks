@@ -179,13 +179,15 @@ export TAVILY_API_KEY=...
 uv run bench run --suite frames --system scout-tavily-advanced --limit 5
 ```
 
-Keenable uses the keyless endpoint, so it needs no API key. `pro` is deeper retrieval
-and `realtime` is the faster index, with 10 results by default and snippets plus publish
-and index dates. Calls are priced at the [pay-as-you-go rate](https://keenable.ai/pricing)
-of $0.004 per request. The public tier allows 1,000 requests per hour and 10 per second
-per IP; the 100,000-request monthly allowance is for authenticated organizations.
+Keenable needs `KEENABLE_API_KEY`. `pro` is deeper retrieval and `realtime` is the
+faster index, with 10 results by default and snippets plus publish and index dates.
+Calls are priced at the [pay-as-you-go rate](https://keenable.ai/pricing) of $0.004
+per request, using the credits each response reports. Keyed and keyless requests are
+both logged under Keenable's default data policy; only Enterprise zero data retention
+differs ([data privacy](https://docs.keenable.ai/data-privacy)).
 
 ```bash
+export KEENABLE_API_KEY=...
 uv run bench run --suite frames --system scout-keenable-pro --limit 5
 uv run bench run --suite frames --system scout-keenable-realtime --limit 5
 ```

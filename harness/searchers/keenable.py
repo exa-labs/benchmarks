@@ -1,13 +1,14 @@
 """Keenable Search adapter returning ranked snippets for retrieval and RAG.
 
 ``mode`` selects ``pro`` (deeper retrieval, the API default) or ``realtime``.
-Calls the keyless endpoint, which needs an app title and no API key. Responses
-omit usage, so each request is priced at the published pay-as-you-go rate.
+Calls the keyed endpoint with ``KEENABLE_API_KEY``. Each response reports the
+credits it used; a request without that field is priced at one credit.
 
 API reference: https://docs.keenable.ai/api-reference/search
 """
 
 import asyncio
+import os
 import time
 from typing import Any
 
@@ -15,8 +16,7 @@ import httpx
 
 from .base import Searcher, SearchResponse, SearchResult
 
-KEENABLE_SEARCH_URL = "https://api.keenable.ai/v1/search/public"
-KEENABLE_APP_TITLE = "exa-benchmarks"
+KEENABLE_SEARCH_URL = "https://api.keenable.ai/v1/search"
 # https://keenable.ai/pricing — $4 / 1,000 requests. One search is one credit.
 KEENABLE_COST_PER_CREDIT = 0.004
 KEENABLE_MODES = ("pro", "realtime")
@@ -95,7 +95,10 @@ class KeenableSearcher(Searcher):
 
     async def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Retry transient provider failures, propagating permanent or exhausted errors."""
-        headers = {"X-Keenable-Title": KEENABLE_APP_TITLE}
+        api_key = os.environ.get("KEENABLE_API_KEY")
+        if not api_key:
+            raise RuntimeError("KEENABLE_API_KEY is not set")
+        headers = {"X-API-Key": api_key}
         for attempt in range(self.max_attempts):
             try:
                 response = await self._client.post(
